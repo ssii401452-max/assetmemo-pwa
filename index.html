@@ -4959,17 +4959,17 @@ input[inputmode="numeric"],input[inputmode="decimal"]{
 <div id="lockscreen">
   <div class="lockbox">
     <h1>資産メモ</h1>
-    <p class="small">入力データを外部へ送信せず、この端末内にAES-256-GCMで暗号化して保存する個人用PWAです。パスワードは端末内に保存しません。</p>
-    <label>パスワード</label><input id="pw" type="password" autocomplete="current-password" placeholder="自分で決めたもの" onkeydown="if(event.key==='Enter')openOrCreate()">
+    <p class="small">入力データは外部へ送信せず、この端末内にAES-256-GCMで暗号化して保存します。初回だけパスワードを入力すると、このiPhoneでは次回から自動で開きます。</p>
+    <label>初回・再設定時のパスワード</label><input id="pw" type="password" autocomplete="current-password" placeholder="自分で決めたもの" onkeydown="if(event.key==='Enter')openOrCreate()">
     <div class="btnrow"><button type="button" onclick="openOrCreate()">開く</button></div>
-    <p class="small">初回は入力したパスワードで新しい保管庫を作成します。忘れると復元できないため、パスワード管理アプリなどに保管してください。</p>
+    <p class="small">暗号鍵は取り出せない形式でこのPWAの保存領域に記録します。バックアップの復元時には元のパスワードが必要です。</p>
     <p id="lockmsg" class="small dangerText"></p>
     <div id="debug" class="debug"></div>
   </div>
 </div>
 <header class="appbar">
   <div class="brandmark" id="brandmarkIcon" aria-hidden="true"></div>
-  <div class="headcopy"><h1 id="title">資産</h1><div class="small" id="subtitle">暗号化PWA v1.0</div></div>
+  <div class="headcopy"><h1 id="title">資産</h1><div class="small" id="subtitle">暗号化PWA v1.2</div></div>
 </header>
 <main id="app"></main>
 <nav id="nav" class="hidden">
@@ -5002,6 +5002,11 @@ var STORE='finance_scriptable_v4_4_vault';
 var LEGACY_PASSSTORE='finance_scriptable_v49_saved_password';
 var CRYPTO_FORMAT='assetmemo-pwa-aesgcm-v1';
 var KDF_ITERATIONS=310000;
+var DEVICE_KEY_DB='assetmemo-pwa-device-key-v2';
+var DEVICE_KEY_STORE='keys';
+var DEVICE_KEY_ID='vault-key-raw';
+var DEVICE_KEY_FALLBACK='assetmemo_pwa_device_key_v2';
+var DEVICE_KEY_FORMAT='assetmemo-device-key-raw-v1';
 var state=null, password='', salt='', cryptoKey=null, kdfIterations=KDF_ITERATIONS, currentPage='', investTab='nisa', dashMode='latest', dashBreakdown='asset', editingSpecialId='', editingFixedCostId='', pageScrolls={}, programmaticScroll=false, scrollSaveTimer=null, nextAction=null, amountHighlightPlayed=true, amountHighlightPending=false, pendingConfirmAction=null, tabSwitchTimer=null, pageTransitionSeq=0, pageTransitionBusy=false, pendingPageRequest=null, saveRevision=0, saveWriteChain=Promise.resolve(), hiddenAt=0;
 function $(id){return document.getElementById(id)}
 function setDebug(t){var d=$('debug'); if(d) d.textContent=t||''}
@@ -5026,6 +5031,83 @@ function storageSet(k,v){
 function storageRemove(k){
   try{ if(window.localStorage){ window.localStorage.removeItem(k); } }catch(e){}
   delete memoryStore[k];
+}
+function openDeviceKeyDb(){
+  return new Promise(function(resolve,reject){
+    try{
+      var req=indexedDB.open(DEVICE_KEY_DB,1);
+      req.onupgradeneeded=function(){
+        var db=req.result;
+        if(!db.objectStoreNames.contains(DEVICE_KEY_STORE))db.createObjectStore(DEVICE_KEY_STORE);
+      };
+      req.onsuccess=function(){resolve(req.result)};
+      req.onerror=function(){reject(req.error||new Error('端末鍵の保存領域を開けません'))};
+    }catch(e){reject(e)}
+  });
+}
+async function serializeDeviceKey(key){
+  requireWebCrypto();
+  var raw=new Uint8Array(await window.crypto.subtle.exportKey('raw',key));
+  if(raw.length!==32)throw new Error('自動ログイン用の鍵形式が不正です');
+  return JSON.stringify({format:DEVICE_KEY_FORMAT,algorithm:'AES-GCM',data:b64(raw)});
+}
+async function deserializeDeviceKey(record){
+  requireWebCrypto();
+  var obj=typeof record==='string'?JSON.parse(record):record;
+  if(!obj||obj.format!==DEVICE_KEY_FORMAT||!obj.data)throw new Error('自動ログイン用の鍵形式が違います');
+  var raw=unb64(obj.data);
+  if(raw.length!==32)throw new Error('自動ログイン用の鍵の長さが不正です');
+  return window.crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt']);
+}
+async function saveDeviceKey(key){
+  var record=await serializeDeviceKey(key),saved=false,lastError=null;
+  try{
+    var db=await openDeviceKeyDb();
+    try{
+      await new Promise(function(resolve,reject){
+        var tx=db.transaction(DEVICE_KEY_STORE,'readwrite');
+        tx.objectStore(DEVICE_KEY_STORE).put(record,DEVICE_KEY_ID);
+        tx.oncomplete=function(){resolve()};
+        tx.onerror=function(){reject(tx.error||new Error('端末鍵を保存できません'))};
+        tx.onabort=function(){reject(tx.error||new Error('端末鍵の保存が中断されました'))};
+      });
+      saved=true;
+    }finally{db.close()}
+  }catch(e){lastError=e}
+  try{if(storageSet(DEVICE_KEY_FALLBACK,record))saved=true}catch(e){lastError=lastError||e}
+  if(!saved)throw(lastError||new Error('自動ログイン用の鍵を保存できません'));
+  return true;
+}
+async function loadDeviceKey(){
+  var record=null,lastError=null;
+  try{
+    var db=await openDeviceKeyDb();
+    try{
+      record=await new Promise(function(resolve,reject){
+        var tx=db.transaction(DEVICE_KEY_STORE,'readonly');
+        var req=tx.objectStore(DEVICE_KEY_STORE).get(DEVICE_KEY_ID);
+        req.onsuccess=function(){resolve(req.result||null)};
+        req.onerror=function(){reject(req.error||new Error('端末鍵を読み込めません'))};
+      });
+    }finally{db.close()}
+  }catch(e){lastError=e}
+  if(!record)record=storageGet(DEVICE_KEY_FALLBACK);
+  if(!record){if(lastError)setDebug('自動ログイン用の保存領域を読み込めませんでした。\n'+String(lastError&&lastError.message||lastError));return null}
+  return deserializeDeviceKey(record);
+}
+async function deleteDeviceKey(){
+  storageRemove(DEVICE_KEY_FALLBACK);
+  try{
+    var db=await openDeviceKeyDb();
+    try{
+      await new Promise(function(resolve,reject){
+        var tx=db.transaction(DEVICE_KEY_STORE,'readwrite');
+        tx.objectStore(DEVICE_KEY_STORE).delete(DEVICE_KEY_ID);
+        tx.oncomplete=function(){resolve()};
+        tx.onerror=function(){reject(tx.error||new Error('端末鍵を削除できません'))};
+      });
+    }finally{db.close()}
+  }catch(e){}
 }
 
 function savePwIfNeeded(){storageRemove(LEGACY_PASSSTORE)}
@@ -5076,7 +5158,7 @@ function randomB64(length){requireWebCrypto();var bytes=new Uint8Array(length);w
 async function deriveAesKey(pw,saltB64,iterations){
   requireWebCrypto();
   var material=await window.crypto.subtle.importKey('raw',utf8Bytes(pw),'PBKDF2',false,['deriveKey']);
-  return window.crypto.subtle.deriveKey({name:'PBKDF2',salt:unb64(saltB64),iterations:iterations||KDF_ITERATIONS,hash:'SHA-256'},material,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  return window.crypto.subtle.deriveKey({name:'PBKDF2',salt:unb64(saltB64),iterations:iterations||KDF_ITERATIONS,hash:'SHA-256'},material,{name:'AES-GCM',length:256},true,['encrypt','decrypt']);
 }
 async function encryptSnapshot(snapshot,key,saltB64,iterations){
   var iv=new Uint8Array(12);window.crypto.getRandomValues(iv);
@@ -5084,18 +5166,24 @@ async function encryptSnapshot(snapshot,key,saltB64,iterations){
   var encrypted=await window.crypto.subtle.encrypt({name:'AES-GCM',iv:iv,additionalData:aad,tagLength:128},key,utf8Bytes(snapshot));
   return {format:CRYPTO_FORMAT,version:1,kdf:{name:'PBKDF2',hash:'SHA-256',iterations:iterations||KDF_ITERATIONS,salt:saltB64},cipher:{name:'AES-GCM',iv:b64(iv),tagLength:128},data:b64(new Uint8Array(encrypted))};
 }
-async function decryptAesPayload(payload,pw){
+async function decryptAesPayloadWithKey(payload,key){
   requireWebCrypto();
   if(!payload||payload.format!==CRYPTO_FORMAT||!payload.kdf||!payload.cipher)throw new Error('暗号化形式が違います');
   var iterations=Math.min(2000000,Math.max(100000,Number(payload.kdf.iterations)||KDF_ITERATIONS));
   if(unb64(payload.kdf.salt).length<16||unb64(payload.cipher.iv).length!==12)throw new Error('暗号化パラメータが不正です');
-  var key=await deriveAesKey(pw,payload.kdf.salt,iterations);
   var decrypted=await window.crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(payload.cipher.iv),additionalData:utf8Bytes(CRYPTO_FORMAT),tagLength:Number(payload.cipher.tagLength)||128},key,unb64(payload.data));
   return {state:JSON.parse(utf8String(new Uint8Array(decrypted))),key:key,salt:payload.kdf.salt,iterations:iterations};
 }
+async function decryptAesPayload(payload,pw){
+  requireWebCrypto();
+  if(!payload||payload.format!==CRYPTO_FORMAT||!payload.kdf)throw new Error('暗号化形式が違います');
+  var iterations=Math.min(2000000,Math.max(100000,Number(payload.kdf.iterations)||KDF_ITERATIONS));
+  var key=await deriveAesKey(pw,payload.kdf.salt,iterations);
+  return decryptAesPayloadWithKey(payload,key);
+}
 function save(){
   try{
-    if(!state||!password||!cryptoKey)return Promise.resolve(false);
+    if(!state||!cryptoKey)return Promise.resolve(false);
     var snapshot=JSON.stringify(state), key=cryptoKey, saltSnapshot=salt, iterationsSnapshot=kdfIterations, revision=++saveRevision;
     var work=async function(){
       var payload=await encryptSnapshot(snapshot,key,saltSnapshot,iterationsSnapshot);
@@ -5141,10 +5229,10 @@ window.openOrCreate=async function(){
       }else{
         throw new Error('保存形式が違います');
       }
-      password=pw;savePwIfNeeded();normalizeState();await save();unlock();toast('開きました');
+      password=pw;savePwIfNeeded();normalizeState();await save();await saveDeviceKey(cryptoKey);unlock();toast('開きました。次回から自動で開きます');
       return;
     }
-    password=pw;salt=randomB64(16);kdfIterations=KDF_ITERATIONS;cryptoKey=await deriveAesKey(pw,salt,kdfIterations);state=emptyState();normalizeState();await save();unlock();toast('初回データを作成しました');
+    password=pw;salt=randomB64(16);kdfIterations=KDF_ITERATIONS;cryptoKey=await deriveAesKey(pw,salt,kdfIterations);state=emptyState();normalizeState();await save();await saveDeviceKey(cryptoKey);unlock();toast('初回データを作成しました。次回から自動で開きます');
   }catch(e){
     password='';cryptoKey=null;state=null;
     $('lockmsg').textContent='開けませんでした。パスワードが違うか、データが壊れている可能性があります';
@@ -5168,7 +5256,7 @@ function pageIconSvg(page){
 }
 function updateBrandmark(page){var bm=$('brandmarkIcon'); if(bm)bm.innerHTML=pageIconSvg(page||currentPage||'dash')}
 
-function setTitle(t,sub){$('title').textContent=t; $('subtitle').textContent=sub||'暗号化PWA v1.0'}
+function setTitle(t,sub){$('title').textContent=t; $('subtitle').textContent=sub||'暗号化PWA v1.2'}
 function setMenuOpen(on){
   var gm=$('globalMenu'), btn=$('menuBtn');
   if(!gm||!btn){document.body.classList.remove('menu-open');return;}
@@ -6237,7 +6325,7 @@ function tools(){
     +'<label>まだ給与明細に入力していない賞与の見込み合計</label><input id="furusato_bonus_remaining" inputmode="numeric" value="'+inputMoney(fur.remainingBonus)+'" placeholder="分からない間は0円">'
     +'<p class="small bonus-guidance">冬賞与の金額がある程度分かる10〜11月頃に入力します。実際の賞与を給与明細へ登録した後は、その賞与分をここから減らしてください。</p>'
     +'<div class="btnrow"><button class="secondary" onclick="saveFurusatoForecast()">ふるさと納税情報を保存</button></div>'
-    +'<p class="small">'+(fur.finalReady?'12月給与と年内分の確定を確認したため、上限概算から3,000円の余裕を残して最終寄附目安を表示しています。':'給与・賞与が確定するまでは、入力月数に応じて上限概算の70〜95%に抑えた安全寄附目安を表示します。')+' 扶養、住宅ローン控除、医療費控除などは完全には反映できないため、最終的には源泉徴収票や公式計算でも確認してください。</p></div></div><div id="taxSimCard" class="card"><h2 id="taxSimTitle">手取り・税金シミュレーター</h2><label>年収</label><input id="sim_income" inputmode="numeric" value="'+inputMoney(inc)+'" placeholder="円"><div class="btnrow"><button onclick="runTaxSim()">試算</button></div><div id="taxResult"></div></div><div class="card"><h2>NISA積立増額シミュレーション</h2><div class="row"><div><label>現在の月積立</label><input id="sim_now" inputmode="numeric" value="'+inputMoney(latestNisa().contribution||0)+'" placeholder="円"></div><div><label>増額後</label><input id="sim_up" inputmode="numeric" value="50,000" placeholder="円"></div></div><label>想定年利%</label><input id="sim_return" inputmode="decimal" value="'+n(state.settings.nisaAnnualReturn)+'" placeholder="%"><div class="btnrow"><button onclick="runNisaSim()">65歳時点を試算</button></div><div id="nisaSimResult"></div></div>'+loanToolHtml(planText)+'<div class="card"><h2>CSV簡易取込</h2><label>取込先</label><select id="csv_target"><option value="tx">収支</option><option value="nisa">NISA</option></select><label>CSVテキスト</label><textarea id="csv_text" placeholder="収支: 日付,収入/支出,金額,カテゴリ,固定費/変動費,メモ\nNISA: 日付,入金額,評価額,メモ"></textarea><div class="btnrow"><button onclick="importCsvText()">CSVを取り込む</button></div><p class="small">銀行・証券CSVは形式が違うため、まずは必要列だけ貼り付ける簡易取込です。</p></div><div class="card"><h2 id="backupTitle">バックアップ</h2><span id="backupLastLine" class="small">最終バックアップ：'+formatDateTime(state.settings.lastBackupAt)+'</span><div class="btnrow"><button class="backup-file-button" onclick="saveBackupAsFile()"><span>ファイルとして</span><span>保存</span></button><button class="secondary" onclick="exportBackup()">JSONを表示</button><button class="secondary" onclick="importBackup(false)">バックアップ読込</button><button class="danger" onclick="lock()">ロック</button></div><p class="small">「ファイルとして保存」は、iPhoneの共有画面を開き、JSONファイルとして保存できるようにします。うまくいかない場合は「JSONを表示」からコピー保存してください。</p><div id="backupOut"></div></div><div class="card reset-data-card"><h2>入力情報のリセット</h2><p class="small">収支、給与、NISA、投資、特別支出、固定費、各設定を初期状態に戻します。実行前にバックアップを保存してください。</p><button class="reset-data-button" type="button" onclick="resetAllInputData()">入力されている情報をリセット</button></div>';
+    +'<p class="small">'+(fur.finalReady?'12月給与と年内分の確定を確認したため、上限概算から3,000円の余裕を残して最終寄附目安を表示しています。':'給与・賞与が確定するまでは、入力月数に応じて上限概算の70〜95%に抑えた安全寄附目安を表示します。')+' 扶養、住宅ローン控除、医療費控除などは完全には反映できないため、最終的には源泉徴収票や公式計算でも確認してください。</p></div></div><div id="taxSimCard" class="card"><h2 id="taxSimTitle">手取り・税金シミュレーター</h2><label>年収</label><input id="sim_income" inputmode="numeric" value="'+inputMoney(inc)+'" placeholder="円"><div class="btnrow"><button onclick="runTaxSim()">試算</button></div><div id="taxResult"></div></div><div class="card"><h2>NISA積立増額シミュレーション</h2><div class="row"><div><label>現在の月積立</label><input id="sim_now" inputmode="numeric" value="'+inputMoney(latestNisa().contribution||0)+'" placeholder="円"></div><div><label>増額後</label><input id="sim_up" inputmode="numeric" value="50,000" placeholder="円"></div></div><label>想定年利%</label><input id="sim_return" inputmode="decimal" value="'+n(state.settings.nisaAnnualReturn)+'" placeholder="%"><div class="btnrow"><button onclick="runNisaSim()">65歳時点を試算</button></div><div id="nisaSimResult"></div></div>'+loanToolHtml(planText)+'<div class="card"><h2>CSV簡易取込</h2><label>取込先</label><select id="csv_target"><option value="tx">収支</option><option value="nisa">NISA</option></select><label>CSVテキスト</label><textarea id="csv_text" placeholder="収支: 日付,収入/支出,金額,カテゴリ,固定費/変動費,メモ\nNISA: 日付,入金額,評価額,メモ"></textarea><div class="btnrow"><button onclick="importCsvText()">CSVを取り込む</button></div><p class="small">銀行・証券CSVは形式が違うため、まずは必要列だけ貼り付ける簡易取込です。</p></div><div class="card"><h2 id="backupTitle">バックアップ</h2><span id="backupLastLine" class="small">最終バックアップ：'+formatDateTime(state.settings.lastBackupAt)+'</span><div class="btnrow"><button class="backup-file-button" onclick="saveBackupAsFile()"><span>ファイルとして</span><span>保存</span></button><button class="secondary" onclick="exportBackup()">JSONを表示</button><button class="secondary" onclick="importBackup(false)">バックアップ読込</button><button class="danger" onclick="disableDeviceUnlock()">自動ログインを解除</button></div><p class="small">「ファイルとして保存」は、iPhoneの共有画面を開き、JSONファイルとして保存できるようにします。「自動ログインを解除」を押すと、次回から再びパスワード入力が必要になります。</p><div id="backupOut"></div></div><div class="card reset-data-card"><h2>入力情報のリセット</h2><p class="small">収支、給与、NISA、投資、特別支出、固定費、各設定を初期状態に戻します。実行前にバックアップを保存してください。</p><button class="reset-data-button" type="button" onclick="resetAllInputData()">入力されている情報をリセット</button></div>';
   setTimeout(enhanceInputs,0);
 }
 function loanToolHtml(planText){
@@ -6398,8 +6486,9 @@ window.importBackup=function(fromLock){
     var file=ev.target.files[0];if(!file)return;
     try{
       var text=typeof file.text==='function'?await file.text():await new Promise(function(resolve,reject){var fr=new FileReader();fr.onload=function(){resolve(fr.result)};fr.onerror=reject;fr.readAsText(file)});
-      var obj=JSON.parse(text),pw=password||$('pw').value||'';
-      if(!pw){$('lockmsg').textContent='パスワードを入力してください';return}
+      var obj=JSON.parse(text),pw=password||($('pw')&&$('pw').value)||'';
+      if(!pw&&!fromLock)pw=window.prompt('バックアップを開くパスワードを入力してください')||'';
+      if(!pw){if($('lockmsg'))$('lockmsg').textContent='パスワードを入力してください';return}
       var opened;
       if(obj&&obj.format===CRYPTO_FORMAT){
         opened=await decryptAesPayload(obj,pw);state=opened.state;cryptoKey=opened.key;salt=opened.salt;kdfIterations=opened.iterations;
@@ -6410,7 +6499,7 @@ window.importBackup=function(fromLock){
       }else{
         state=obj.state||obj;salt=randomB64(16);kdfIterations=KDF_ITERATIONS;cryptoKey=await deriveAesKey(pw,salt,kdfIterations);
       }
-      password=pw;savePwIfNeeded();
+      password=pw;savePwIfNeeded();await saveDeviceKey(cryptoKey);
       if(!state||!state.settings)throw new Error('形式が違います');
       normalizeState();state.settings.lastRestoreAt=new Date().toISOString();await save();
       if(fromLock)unlock();else show(currentPage);
@@ -6420,12 +6509,47 @@ window.importBackup=function(fromLock){
   };
   inp.click();
 }
-window.lock=function(){closeMenu();save();state=null;password='';cryptoKey=null;salt='';kdfIterations=KDF_ITERATIONS;currentPage='';pageScrolls={};amountHighlightPlayed=false;amountHighlightPending=false;$('pw').value='';$('lockscreen').classList.remove('hidden');$('nav').classList.add('hidden');$('app').innerHTML='';$('title').textContent='資産管理';$('subtitle').textContent='暗号化PWA v1.0';toast('ロックしました')}
+async function tryAutoUnlock(){
+  try{
+    var raw=storageGet(STORE);
+    if(!raw)return false;
+    var box=JSON.parse(raw);
+    if(!box||box.format!==CRYPTO_FORMAT)return false;
+    var key=await loadDeviceKey();
+    if(!key)return false;
+    var opened=await decryptAesPayloadWithKey(box,key);
+    state=opened.state;cryptoKey=opened.key;salt=opened.salt;kdfIterations=opened.iterations;password='';
+    normalizeState();unlock();return true;
+  }catch(e){
+    setDebug('自動ログインに失敗しました。パスワードで開いてください。\n'+String(e&&e.message||e));
+    return false;
+  }
+}
+window.disableDeviceUnlock=function(){
+  showAppConfirm('このiPhoneに保存した自動ログイン用の暗号鍵を削除します。次回からパスワード入力が必要になります。',function(){
+    deleteDeviceKey().then(function(){window.lock();if($('lockmsg'))$('lockmsg').textContent='自動ログインを解除しました。パスワードを入力してください';toast('自動ログインを解除しました')});
+  },{title:'自動ログインを解除しますか？',confirmLabel:'解除'});
+}
+window.lock=function(){closeMenu();save();state=null;password='';cryptoKey=null;salt='';kdfIterations=KDF_ITERATIONS;currentPage='';pageScrolls={};amountHighlightPlayed=false;amountHighlightPending=false;$('pw').value='';$('lockscreen').classList.remove('hidden');$('nav').classList.add('hidden');$('app').innerHTML='';$('title').textContent='資産管理';$('subtitle').textContent='暗号化PWA v1.2';toast('ロックしました')}
 window.del=function(arr,id){state[arr]=(state[arr]||[]).filter(function(x){return x.id!==id}); save(); toast('削除しました')}
 document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeMenu()});
-document.addEventListener('visibilitychange',function(){if(document.hidden){hiddenAt=Date.now();if(state)save()}else if(hiddenAt&&Date.now()-hiddenAt>60000&&state){lock()}hiddenAt=0});
+document.addEventListener('visibilitychange',function(){if(document.hidden&&state)save()});
 window.addEventListener('pagehide',function(){if(state)save()});
-async function initPwa(){trySavedPassword();try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./service-worker.js',{scope:'./'}).catch(function(e){setDebug('オフライン機能の登録に失敗しました。\n'+String(e&&e.message||e))})})}}
+async function initPwa(){
+  trySavedPassword();
+  try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}
+  if('serviceWorker' in navigator){
+    try{
+      var reg=await navigator.serviceWorker.register('./service-worker.js',{scope:'./'});
+      try{await reg.update()}catch(e){}
+    }catch(e){setDebug('オフライン機能の登録に失敗しました。\n'+String(e&&e.message||e))}
+  }
+  var opened=await tryAutoUnlock();
+  if(!opened){
+    if($('lockmsg'))$('lockmsg').textContent=storageGet(STORE)?'この更新後の初回だけ、これまでのパスワードを入力してください。':'初回だけパスワードを設定してください。';
+    setTimeout(function(){try{if($('pw'))$('pw').focus()}catch(e){}},120);
+  }
+}
 initPwa();
 })();
 </script>
