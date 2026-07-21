@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>資産メモ v4.89</title>
+<meta name="theme-color" content="#f7f8fb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="資産メモ">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>資産メモ v4.90</title>
 <style>
 
 :root{
@@ -5387,21 +5393,10 @@ body.keyboard-open #navBackdrop{
 </style>
 </head>
 <body>
-<div id="lockscreen">
-  <div class="lockbox">
-    <h1>資産メモ</h1>
-    <p class="small">Scriptable内だけで使うローカル版です。v4.89では、NISAグラフへ1年・3年・全期間の切替を追加しました。バックアップを書き出す時もパスワードで暗号化します。</p>
-    <label>パスワード</label><input id="pw" type="password" autocomplete="current-password" placeholder="自分で決めたもの" onkeydown="if(event.key==='Enter')openOrCreate()">
-    <label class="checkline"><input id="remember" type="checkbox">この端末に保存して次回の入力を省略</label>
-    <div class="btnrow"><button type="button" onclick="openOrCreate()">開く</button></div>
-    <p class="small">誤操作防止のため、新規作成・初期化ボタンは表示しません。バックアップ読込は、開いた後の「設定」から行えます。</p>
-    <p id="lockmsg" class="small dangerText"></p>
-    <div id="debug" class="debug"></div>
-  </div>
-</div>
+<div id="lockscreen" class="hidden" aria-hidden="true"><input id="pw" type="hidden"><input id="remember" type="checkbox" class="hidden"><p id="lockmsg" class="hidden"></p><div id="debug" class="debug hidden"></div></div>
 <header class="appbar">
   <div class="brandmark" id="brandmarkIcon" aria-hidden="true"></div>
-  <div class="headcopy"><h1 id="title">資産</h1><div class="small" id="subtitle">ahamo風フラットUI v4.89</div></div>
+  <div class="headcopy"><h1 id="title">資産</h1><div class="small" id="subtitle">ahamo風フラットUI v4.90</div></div>
 </header>
 <main id="app"></main>
 <nav id="nav" class="hidden">
@@ -5436,6 +5431,7 @@ body.keyboard-open #navBackdrop{
 
 var STORE='finance_scriptable_v4_4_vault';
 var PASSSTORE='finance_scriptable_v49_saved_password';
+var INTERNAL_PASSWORD='assetmemo-local-v490';
 var state=null, password='', salt='', currentPage='', investTab='nisa', lifeTab='special', nisaChartRange='1y', dashMode='latest', dashBreakdown='asset', editingSpecialId='', editingFixedCostId='', editingTransactionId='', pageScrolls={}, programmaticScroll=false, scrollSaveTimer=null, nextAction=null, amountHighlightPlayed=true, amountHighlightPending=false, pendingConfirmAction=null, tabSwitchTimer=null, pageTransitionSeq=0, pageTransitionBusy=false, pendingPageRequest=null, salaryLogYear=(new Date()).getFullYear(), salaryLogMonth=(new Date()).getMonth()+1, mutationBusy=false;
 function $(id){return document.getElementById(id)}
 function setDebug(t){var d=$('debug'); if(d) d.textContent=t||''}
@@ -5541,7 +5537,7 @@ function normalizeState(){
   if((state.fixedCosts||[]).length===0 && (state.subs||[]).length){
     state.fixedCosts=(state.subs||[]).map(function(s){return {id:s.id||uid(),name:s.name||'サブスク',kind:'サブスク',cycle:s.cycle||'月額',amount:n(s.amount),active:s.active!==false}});
   }
-  state.version='4.89';
+  state.version='4.90';
 }
 
 
@@ -5576,9 +5572,36 @@ function unlock(){
   pageScrolls.dash=0;
   window.scrollTo(0,0);
 }
-window.openOrCreate=function(){try{var pw=$('pw').value||''; if(!pw){$('lockmsg').textContent='パスワードを入力してください';return} var raw=storageGet(STORE); if(raw){var box=JSON.parse(raw); var obj=decryptObj(box.data,pw,box.salt); password=pw; savePwIfNeeded(pw); salt=box.salt; state=obj; normalizeState(); unlock(); toast('開きました'); return} password=pw; savePwIfNeeded(pw); salt=randSalt(); state=emptyState(); normalizeState(); save(); unlock(); toast('初回データを作成しました')}catch(e){$('lockmsg').textContent='開けませんでした。パスワードが違うか、データが壊れている可能性があります'; setDebug(String(e&&e.message||e))}}
-window.openExisting=function(){openOrCreate()}
-window.createNew=function(){openOrCreate()}
+function startPasswordless(){
+  var replacedOldData=false;
+  password=INTERNAL_PASSWORD;
+  storageRemove(PASSSTORE);
+  var raw=storageGet(STORE);
+  if(raw){
+    try{
+      var box=JSON.parse(raw);
+      state=decryptObj(box.data,password,box.salt);
+      salt=box.salt;
+      normalizeState();
+    }catch(e){
+      replacedOldData=true;
+      salt=randSalt();
+      state=emptyState();
+      normalizeState();
+      save();
+    }
+  }else{
+    salt=randSalt();
+    state=emptyState();
+    normalizeState();
+    save();
+  }
+  unlock();
+  toast(replacedOldData?'新しいデータを開始しました':'開きました');
+}
+window.openOrCreate=startPasswordless;
+window.openExisting=startPasswordless;
+window.createNew=startPasswordless;
 window.importBackupFromLock=function(){var pw=$('pw').value||''; if(!pw){$('lockmsg').textContent='先にパスワードを入力してください';return} password=pw; importBackup(true)}
 
 function pageIconSvg(page){
@@ -5594,7 +5617,7 @@ function pageIconSvg(page){
 }
 function updateBrandmark(page){var bm=$('brandmarkIcon'); if(bm)bm.innerHTML=pageIconSvg(page||currentPage||'dash')}
 
-function setTitle(t,sub){$('title').textContent=t; $('subtitle').textContent=sub||'ahamo風フラットUI v4.89'}
+function setTitle(t,sub){$('title').textContent=t; $('subtitle').textContent=sub||'ahamo風フラットUI v4.90'}
 function setMenuOpen(on){
   var gm=$('globalMenu'), btn=$('menuBtn');
   if(!gm||!btn){document.body.classList.remove('menu-open');return;}
@@ -6807,7 +6830,7 @@ function tools(){
     +'<label>まだ給与明細に入力していない賞与の見込み合計</label><input id="furusato_bonus_remaining" inputmode="numeric" value="'+inputMoney(fur.remainingBonus)+'" placeholder="分からない間は0円">'
     +'<p class="small bonus-guidance">冬賞与の金額がある程度分かる10〜11月頃に入力します。実際の賞与を給与明細へ登録した後は、その賞与分をここから減らしてください。</p>'
     +'<div class="btnrow"><button class="secondary" onclick="saveFurusatoForecast()">ふるさと納税情報を保存</button></div>'
-    +'<p class="small">'+(fur.finalReady?'12月給与と年内分の確定を確認したため、上限概算から3,000円の余裕を残して最終寄附目安を表示しています。':'給与・賞与が確定するまでは、入力月数に応じて上限概算の70〜95%に抑えた安全寄附目安を表示します。')+' 扶養、住宅ローン控除、医療費控除などは完全には反映できないため、最終的には源泉徴収票や公式計算でも確認してください。</p></div></div><div id="taxSimCard" class="card"><h2 id="taxSimTitle">手取り・税金シミュレーター</h2><label>年収</label><input id="sim_income" inputmode="numeric" value="'+inputMoney(inc)+'" placeholder="円"><div class="btnrow"><button onclick="runTaxSim()">試算</button></div><div id="taxResult"></div></div><div class="card"><h2>NISA積立増額シミュレーション</h2><div class="row"><div><label>現在の月積立</label><input id="sim_now" inputmode="numeric" value="'+inputMoney(latestNisa().contribution||0)+'" placeholder="円"></div><div><label>増額後</label><input id="sim_up" inputmode="numeric" value="50,000" placeholder="円"></div></div><label>想定年利%</label><input id="sim_return" inputmode="decimal" value="'+n(state.settings.nisaAnnualReturn)+'" placeholder="%"><div class="btnrow"><button onclick="runNisaSim()">65歳時点を試算</button></div><div id="nisaSimResult"></div></div>'+loanToolHtml(planText)+'<div class="card"><h2>CSV簡易取込</h2><label>取込先</label><select id="csv_target"><option value="tx">収支</option><option value="nisa">NISA</option></select><label>CSVテキスト</label><textarea id="csv_text" placeholder="収支: 日付,収入/支出,金額,カテゴリ,固定費/変動費,メモ\nNISA: 日付,入金額,評価額,メモ"></textarea><div class="btnrow"><button onclick="importCsvText()">CSVを取り込む</button></div><p class="small">銀行・証券CSVは形式が違うため、まずは必要列だけ貼り付ける簡易取込です。</p></div><div class="card"><h2 id="backupTitle">バックアップ</h2><span id="backupLastLine" class="small">最終バックアップ：'+formatDateTime(state.settings.lastBackupAt)+'</span><div class="btnrow"><button class="backup-file-button" onclick="saveBackupAsFile()"><span>ファイルとして</span><span>保存</span></button><button class="secondary" onclick="exportBackup()">JSONを表示</button><button class="secondary" onclick="importBackup(false)">バックアップ読込</button><button class="danger" onclick="lock()">ロック</button></div><p class="small">「ファイルとして保存」は、iPhoneの共有画面を開き、JSONファイルとして保存できるようにします。うまくいかない場合は「JSONを表示」からコピー保存してください。</p><div id="backupOut"></div></div><div class="card reset-data-card"><h2>入力情報のリセット</h2><p class="small">収支、給与、NISA、投資、特別支出、固定費、各設定を初期状態に戻します。実行前にバックアップを保存してください。</p><button class="reset-data-button" type="button" onclick="resetAllInputData()">入力されている情報をリセット</button></div>';
+    +'<p class="small">'+(fur.finalReady?'12月給与と年内分の確定を確認したため、上限概算から3,000円の余裕を残して最終寄附目安を表示しています。':'給与・賞与が確定するまでは、入力月数に応じて上限概算の70〜95%に抑えた安全寄附目安を表示します。')+' 扶養、住宅ローン控除、医療費控除などは完全には反映できないため、最終的には源泉徴収票や公式計算でも確認してください。</p></div></div><div id="taxSimCard" class="card"><h2 id="taxSimTitle">手取り・税金シミュレーター</h2><label>年収</label><input id="sim_income" inputmode="numeric" value="'+inputMoney(inc)+'" placeholder="円"><div class="btnrow"><button onclick="runTaxSim()">試算</button></div><div id="taxResult"></div></div><div class="card"><h2>NISA積立増額シミュレーション</h2><div class="row"><div><label>現在の月積立</label><input id="sim_now" inputmode="numeric" value="'+inputMoney(latestNisa().contribution||0)+'" placeholder="円"></div><div><label>増額後</label><input id="sim_up" inputmode="numeric" value="50,000" placeholder="円"></div></div><label>想定年利%</label><input id="sim_return" inputmode="decimal" value="'+n(state.settings.nisaAnnualReturn)+'" placeholder="%"><div class="btnrow"><button onclick="runNisaSim()">65歳時点を試算</button></div><div id="nisaSimResult"></div></div>'+loanToolHtml(planText)+'<div class="card"><h2>CSV簡易取込</h2><label>取込先</label><select id="csv_target"><option value="tx">収支</option><option value="nisa">NISA</option></select><label>CSVテキスト</label><textarea id="csv_text" placeholder="収支: 日付,収入/支出,金額,カテゴリ,固定費/変動費,メモ\nNISA: 日付,入金額,評価額,メモ"></textarea><div class="btnrow"><button onclick="importCsvText()">CSVを取り込む</button></div><p class="small">銀行・証券CSVは形式が違うため、まずは必要列だけ貼り付ける簡易取込です。</p></div><div class="card"><h2 id="backupTitle">バックアップ</h2><span id="backupLastLine" class="small">最終バックアップ：'+formatDateTime(state.settings.lastBackupAt)+'</span><div class="btnrow"><button class="backup-file-button" onclick="saveBackupAsFile()"><span>ファイルとして</span><span>保存</span></button><button class="secondary" onclick="exportBackup()">JSONを表示</button><button class="secondary" onclick="importBackup(false)">バックアップ読込</button></div><p class="small">「ファイルとして保存」は、iPhoneの共有画面を開き、JSONファイルとして保存できるようにします。うまくいかない場合は「JSONを表示」からコピー保存してください。</p><div id="backupOut"></div></div><div class="card reset-data-card"><h2>入力情報のリセット</h2><p class="small">収支、給与、NISA、投資、特別支出、固定費、各設定を初期状態に戻します。実行前にバックアップを保存してください。</p><button class="reset-data-button" type="button" onclick="resetAllInputData()">入力されている情報をリセット</button></div>';
   setTimeout(enhanceInputs,0);
 }
 function loanToolHtml(planText){
@@ -6982,10 +7005,10 @@ window.copyBackupJson=function(){
   }catch(e){fallback()}
 }
 window.importBackup=function(fromLock){var inp=$('fileInput'); inp.onchange=function(ev){var file=ev.target.files[0]; if(!file)return; var fr=new FileReader(); fr.onload=function(){try{var obj=JSON.parse(fr.result); var pw=password||$('pw').value||''; if(!pw){$('lockmsg').textContent='パスワードを入力してください'; return} if(/^assetmemo-encrypted-v\d+$/.test(String(obj.format||''))){state=decryptObj(obj.data,pw,obj.salt); salt=obj.salt; password=pw; savePwIfNeeded(pw)}else{state=obj.state||obj; password=pw; if(!salt)salt=randSalt(); savePwIfNeeded(pw)} if(!state.settings)throw new Error('形式が違います'); normalizeState(); if(state.settings)state.settings.lastRestoreAt=new Date().toISOString(); save(); if(fromLock)unlock(); else show(currentPage); toast('読み込みました')}catch(e){toast('読み込み失敗。パスワードが違うか、形式が違います'); setDebug(String(e&&e.stack||e))}}; fr.readAsText(file)}; inp.click()}
-window.lock=function(){closeMenu(); save(); state=null; password=''; currentPage=''; pageScrolls={}; amountHighlightPlayed=false; amountHighlightPending=false; $('pw').value=''; $('lockscreen').classList.remove('hidden'); $('nav').classList.add('hidden'); $('app').innerHTML=''; $('title').textContent='Dashboard'; $('subtitle').textContent='ahamo風フラットUI v4.76'; toast('ロックしました')}
+window.lock=function(){toast('パスワードロックは無効です')}
 window.del=function(arr,id){state[arr]=(state[arr]||[]).filter(function(x){return x.id!==id}); save(); toast('削除しました')}
 document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeMenu()});
-trySavedPassword();
+startPasswordless();
 })();
 
 // v4.77: smoother iOS-style tab bar, five-second addition confirmation, and unified native date picker.
@@ -7096,6 +7119,15 @@ trySavedPassword();
   }
 })();
 
+</script>
+<script>
+window.addEventListener('load',function(){
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./service-worker.js').then(function(registration){
+      registration.update();
+    }).catch(function(){});
+  }
+});
 </script>
 </body>
 </html>
