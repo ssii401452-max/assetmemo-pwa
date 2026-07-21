@@ -3,16 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>資産管理</title>
-<meta name="description" content="端末内に暗号化して保存する、個人用の資産管理PWA">
-<meta name="theme-color" content="#f4f7fb">
-<meta name="color-scheme" content="light">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="資産管理">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self' blob:">
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="apple-touch-icon" href="./icon-192.png">
+<title>資産メモ v4.89</title>
 <style>
 
 :root{
@@ -4267,8 +4258,8 @@ svg.nisa-chart{width:100%!important;height:auto!important;min-height:220px!impor
 #nisaSimResult:not(:empty) > .grid,
 #loanResult:not(:empty) > .grid{margin-top:0!important}
 
-/* Fixed/transaction optional tags */
-.fixed-kind-pill,.income-pill{
+/* Transaction optional tag */
+.income-pill{
   margin-right:8px!important;
   background:#eef8f7!important;
   color:#548d85!important;
@@ -4955,41 +4946,462 @@ input[inputmode="numeric"],input[inputmode="decimal"]{
 
 
 
-/* PWA v1.3: blank startup cover; the recovery screen is shown only when old data cannot be opened automatically. */
-#splashscreen{
-  position:fixed!important;
-  inset:0!important;
-  z-index:1000!important;
-  background:#f4f7fb!important;
-  opacity:1!important;
-  visibility:visible!important;
-  transition:opacity .12s ease,visibility .12s ease!important;
+/* v4.73 iOS 26-inspired navigation layer test
+   Content design remains unchanged; only the bottom navigation adopts a floating Liquid Glass-style treatment. */
+:root{
+  --ios26-glass:rgba(248,250,255,.72);
+  --ios26-glass-border:rgba(255,255,255,.72);
+  --ios26-glass-line:rgba(30,48,78,.13);
+  --ios26-active:rgba(47,124,246,.14);
 }
-#splashscreen.hidden{
-  display:block!important;
-  opacity:0!important;
-  visibility:hidden!important;
-  pointer-events:none!important;
+body{
+  padding-bottom:calc(126px + env(safe-area-inset-bottom,20px))!important;
+}
+main{
+  padding-bottom:calc(126px + env(safe-area-inset-bottom,20px))!important;
+}
+nav{
+  left:12px!important;
+  right:12px!important;
+  bottom:calc(8px + env(safe-area-inset-bottom,0px))!important;
+  width:auto!important;
+  border:1px solid var(--ios26-glass-border)!important;
+  border-radius:30px!important;
+  padding:6px 7px!important;
+  background:var(--ios26-glass)!important;
+  box-shadow:
+    0 10px 34px rgba(18,35,63,.15),
+    0 2px 10px rgba(18,35,63,.08),
+    inset 0 0 0 1px var(--ios26-glass-line)!important;
+  -webkit-backdrop-filter:blur(24px) saturate(180%)!important;
+  backdrop-filter:blur(24px) saturate(180%)!important;
+  transition:transform .32s cubic-bezier(.2,.8,.2,1),padding .28s ease,border-radius .28s ease!important;
+  overflow:hidden!important;
+}
+nav::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.42),rgba(255,255,255,.08) 48%,rgba(255,255,255,.18));
+  mix-blend-mode:screen;
+}
+nav button{
+  min-height:52px!important;
+  padding:6px 2px 7px!important;
+  border-radius:22px!important;
+  background:transparent!important;
+  color:rgba(55,65,81,.62)!important;
+  font-size:10px!important;
+  font-weight:650!important;
+  gap:3px!important;
+  position:relative!important;
+  z-index:1!important;
+  transition:background .22s ease,color .22s ease,transform .18s ease,opacity .22s ease!important;
+}
+nav button:before{
+  color:rgba(55,65,81,.58)!important;
+  font-size:19px!important;
+  transition:color .22s ease,transform .22s ease!important;
+}
+nav button.active{
+  background:var(--ios26-active)!important;
+  color:var(--v445-blue)!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)!important;
+}
+nav button.active:before{
+  color:var(--v445-blue)!important;
+  transform:translateY(-1px) scale(1.04)!important;
+}
+nav button:active{transform:scale(.96)!important}
+nav.ios26-compact{
+  left:42px!important;
+  right:42px!important;
+  padding:4px 7px!important;
+  border-radius:27px!important;
+}
+nav.ios26-compact button{
+  min-height:43px!important;
+  font-size:0!important;
+  gap:0!important;
+}
+nav.ios26-compact button:before{
+  font-size:20px!important;
+}
+.status{
+  bottom:calc(84px + env(safe-area-inset-bottom,20px))!important;
+}
+@media(max-width:380px){
+  nav{left:8px!important;right:8px!important}
+  nav.ios26-compact{left:30px!important;right:30px!important}
+  nav button{font-size:9px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  nav,nav button,nav button:before{transition:none!important}
 }
 
+/* v4.73: translucent page veil beneath and behind the floating tab bar. */
+#navBackdrop{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  height:calc(112px + env(safe-area-inset-bottom,20px));
+  z-index:6;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(247,248,251,0) 0%,rgba(247,248,251,.32) 20%,rgba(247,248,251,.68) 58%,rgba(247,248,251,.88) 100%);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+  backdrop-filter:blur(18px) saturate(150%);
+  -webkit-mask-image:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.42) 24%,#000 58%);
+  mask-image:linear-gradient(180deg,transparent 0%,rgba(0,0,0,.42) 24%,#000 58%);
+}
+nav.hidden + #navBackdrop{display:none!important}
+
+/* v4.74: smoother compact/expand motion for the floating tab bar. */
+nav{
+  will-change:left,right,padding,border-radius,transform;
+  transition:
+    left .46s cubic-bezier(.22,1,.36,1),
+    right .46s cubic-bezier(.22,1,.36,1),
+    padding .42s cubic-bezier(.22,1,.36,1),
+    border-radius .42s cubic-bezier(.22,1,.36,1),
+    transform .42s cubic-bezier(.22,1,.36,1),
+    box-shadow .42s ease!important;
+}
+nav button{
+  transition:
+    min-height .38s cubic-bezier(.22,1,.36,1),
+    padding .38s cubic-bezier(.22,1,.36,1),
+    gap .34s cubic-bezier(.22,1,.36,1),
+    background .24s ease,color .24s ease,transform .2s ease,opacity .24s ease!important;
+}
+nav .navlabel{
+  display:block;
+  max-height:16px;
+  line-height:1.15;
+  opacity:1;
+  transform:translateY(0) scale(1);
+  transform-origin:center top;
+  overflow:hidden;
+  transition:
+    max-height .34s cubic-bezier(.22,1,.36,1),
+    opacity .20s ease,
+    transform .34s cubic-bezier(.22,1,.36,1),
+    margin .34s cubic-bezier(.22,1,.36,1)!important;
+}
+nav .navicon{
+  transition:transform .38s cubic-bezier(.22,1,.36,1)!important;
+}
+nav.ios26-compact button{font-size:10px!important}
+nav.ios26-compact .navlabel{
+  max-height:0;
+  opacity:0;
+  transform:translateY(5px) scale(.94);
+  margin:0!important;
+}
+nav.ios26-compact .navicon{transform:translateY(1px) scale(1.04)}
+
+
+
+/* v4.77: five-second addition confirmation + unified native date picker */
+.add-flow-layer{position:fixed;inset:0;z-index:1200;pointer-events:none;opacity:0;visibility:hidden;overflow:hidden;transition:opacity .32s cubic-bezier(.22,1,.36,1),visibility 0s linear .32s}
+.add-flow-layer.show{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .30s cubic-bezier(.22,1,.36,1),visibility 0s}
+.add-flow-layer.hiding{opacity:0;pointer-events:none}
+.add-flow-wash{display:none!important}
+.add-flow-card{position:absolute;left:50%;top:47%;transform:translate(-50%,-47%) scale(.97);width:min(calc(100vw - 40px),440px);padding:20px 22px;border:0;border-radius:24px;background:rgba(194,239,255,.92);box-shadow:0 14px 38px rgba(28,100,140,.12);opacity:0;text-align:center;color:#23313a;transition:opacity .34s cubic-bezier(.22,1,.36,1),transform .42s cubic-bezier(.22,1,.36,1)}
+.add-flow-layer.show .add-flow-card{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.add-flow-layer.hiding .add-flow-card{opacity:0;transform:translate(-50%,-54%) scale(.985)}
+.add-flow-check{width:36px;height:36px;margin:0 auto 10px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.82);color:#0c8db7;font-size:20px;font-weight:800}
+.add-flow-title{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.add-flow-detail{margin:12px auto 0;max-width:330px;color:#516875;text-align:left;display:grid;gap:7px;font-size:13px;line-height:1.35}
+.add-flow-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:baseline;white-space:nowrap}
+.add-flow-row-label{overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.add-flow-row-value{text-align:right;font-weight:650;font-variant-numeric:tabular-nums}
+
+/* All pages use the same native iOS/WebKit date picker and stay inside their form area. */
+input[type="date"]{-webkit-appearance:auto;appearance:auto;display:block;width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden;transition:transform .20s cubic-bezier(.22,1,.36,1),background-color .20s ease,border-color .20s ease,box-shadow .20s ease;transform-origin:center}
+.row>div input[type="date"],.grid>div input[type="date"],.card input[type="date"]{width:100%!important;max-width:100%!important;min-width:0!important}
+input[type="date"]:focus{transform:scale(.992);background-color:#fbfdff;border-color:rgba(12,141,183,.34);box-shadow:0 0 0 4px rgba(12,141,183,.08)!important}
+input[type="date"]:active{transform:scale(.985)}
+@media (prefers-reduced-motion:reduce){.add-flow-layer,.add-flow-card,input[type="date"]{transition:none!important}}
+
+
+
+/* v4.81: refined gauges, salary selectors, and complete date containment */
+.salary-summary-waiting .bar{
+  height:8px!important;
+  margin:0 0 14px!important;
+  border-radius:999px!important;
+  background:#f0f2f4!important;
+  overflow:hidden!important;
+  box-shadow:none!important;
+}
+.salary-summary-waiting .bar i{
+  display:block!important;
+  height:100%!important;
+  border-radius:999px!important;
+  background:#b9e8f1!important;
+  background-image:none!important;
+  box-shadow:none!important;
+}
+
+/* Special-spending progress follows the same quiet ahamo palette. */
+#specialCard .bar{
+  height:8px!important;
+  background:#f0f2f4!important;
+  border-radius:999px!important;
+  overflow:hidden!important;
+  box-shadow:none!important;
+}
+#specialCard .bar i{
+  display:block!important;
+  height:100%!important;
+  background:#b9e8f1!important;
+  background-image:none!important;
+  border-radius:999px!important;
+  box-shadow:none!important;
+}
+
+/* Date controls keep type=date behavior while removing WebKit's intrinsic overflow width. */
+#app input[type="date"],
+.card input[type="date"],
+.edit-box input[type="date"],
+input[type="date"]{
+  -webkit-appearance:none!important;
+  appearance:none!important;
+  display:block!important;
+  box-sizing:border-box!important;
+  inline-size:100%!important;
+  width:100%!important;
+  max-inline-size:100%!important;
+  max-width:100%!important;
+  min-inline-size:0!important;
+  min-width:0!important;
+  -webkit-min-logical-width:0!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  padding-left:12px!important;
+  padding-right:12px!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:nowrap!important;
+}
+#app input[type="date"]::-webkit-date-and-time-value,
+input[type="date"]::-webkit-date-and-time-value{
+  min-width:0!important;
+  width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  text-align:left!important;
+}
+#app input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit{
+  min-width:0!important;
+  max-width:100%!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+#app input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator{
+  margin:0 0 0 auto!important;
+  padding:2px!important;
+  flex:0 0 auto!important;
+  opacity:.62!important;
+}
+.row,.row3,.card,.edit-box,.field,.form-group,label,
+.row>div,.row3>div,.grid>div{
+  min-inline-size:0!important;
+  max-inline-size:100%!important;
+}
+.row,.row3{grid-template-columns:minmax(0,1fr)!important}
+@media(min-width:431px){.row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}.row3{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+/* Restore the original two-column NISA status layout on normal iPhones. */
+.nisa-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+@media(max-width:365px){.nisa-metrics{grid-template-columns:minmax(0,1fr)!important}}
+
+/* Fixed-cost type tags stay subordinate to the item name. */
+.fixed-kind-label{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  width:max-content!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  color:#6e7c82!important;
+  box-shadow:none!important;
+  font-size:11.5px!important;
+  font-weight:400!important;
+  line-height:1.35!important;
+  letter-spacing:.06em!important;
+  white-space:nowrap!important;
+}
+.fixed-kind-label::before{
+  content:""!important;
+  display:block!important;
+  width:18px!important;
+  height:2px!important;
+  border-radius:2px!important;
+  background:#69cadb!important;
+  box-shadow:none!important;
+}
+.fixed-meta-row{display:flex!important;align-items:center!important;gap:8px!important;margin-top:7px!important;min-width:0!important}
+
+/* Salary log year/month selector inspired by ahamo, fitted to this app. */
+.salary-period-card{overflow:hidden!important}
+.salary-year-row{display:block!important;width:100%!important;margin:4px 0 12px!important;padding:0 2px!important}
+.salary-year-select-wrap{position:relative;display:flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;width:100%!important;min-height:78px!important;margin:0!important;padding:14px 18px!important;border-top:1px solid #a9e7ef!important;border-bottom:1px solid #a9e7ef!important;border-left:0!important;border-right:0!important;border-radius:0!important;background:#f3fdff!important;box-shadow:none!important;overflow:hidden!important}
+.salary-year-select{-webkit-appearance:none!important;appearance:none!important;flex:0 0 auto!important;width:auto!important;min-width:0!important;min-height:44px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#40464e!important;box-shadow:none!important;text-align:center!important;text-align-last:center!important;font-size:25px!important;font-weight:400!important;letter-spacing:.02em!important}
+.salary-year-cue{flex:0 0 auto!important;color:#73939b!important;font-size:29px!important;font-weight:300!important;line-height:1!important;transform:translateY(-1px)!important;pointer-events:none!important}
+.salary-month-strip{display:flex;align-items:center;gap:10px;margin:0 -14px;padding:10px 18px 14px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.salary-month-strip::-webkit-scrollbar{display:none}
+.salary-month-button{flex:0 0 48px!important;width:48px!important;min-width:48px!important;height:48px!important;min-height:48px!important;padding:0!important;border:1px solid #dce4e8!important;border-radius:50%!important;background:#fff!important;color:#596168!important;box-shadow:none!important;font-size:13px!important;font-weight:450!important;scroll-snap-align:center;transform:scale(.92)!important;transform-origin:center!important;transition:transform .34s cubic-bezier(.22,1,.36,1),background-color .28s ease,border-color .28s ease,color .28s ease!important}
+.salary-month-button.selected{transform:scale(1.13)!important;border-color:#a8dfeb!important;background:#cceff6!important;color:#225d6c!important;font-weight:650!important}
+.salary-month-button:active{transform:scale(.88)!important}
+.salary-period-label{text-align:center;margin:1px 0 6px;color:#6d747d;font-size:12px;font-weight:400}
+.salary-empty{text-align:center;padding:22px 8px 12px;color:#858b92;font-size:13px}
+.salary-history-meta{display:flex!important;flex-wrap:wrap!important;gap:7px 14px!important;line-height:1.45!important}
+.salary-history-meta span,.salary-history-main span,.special-history span{display:inline-block!important;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important}
+.salary-history-main{display:flex!important;flex-wrap:wrap!important;gap:6px 14px!important}
+.salary-history-head,#specialCard .special-head{flex-wrap:wrap!important}
+.salary-history-value,#specialCard .special-head .right{margin-left:auto!important;white-space:nowrap!important}
+.special-detail-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px 16px!important;margin-top:10px!important;padding:10px 0 2px!important;line-height:1.4!important}
+.special-detail-list>span{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:2px!important;min-width:0!important;white-space:normal!important;word-break:normal!important;overflow-wrap:normal!important}
+.special-detail-list>span:first-child{grid-column:1/-1!important}
+.special-detail-list>span:last-child{grid-column:1/-1!important}
+.special-detail-list em{color:#8a9097!important;font-size:10.5px!important;font-style:normal!important;font-weight:300!important;white-space:nowrap!important}
+.special-detail-list b{max-width:100%!important;color:#555c64!important;font-size:12.5px!important;font-weight:400!important;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important}
+.special-history{display:flex!important;flex-wrap:wrap!important;gap:6px 12px!important;margin-top:8px!important}
+.tx-item .item-actions{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:12px!important}
+.tx-item .item-actions button{width:100%!important;min-width:0!important;min-height:46px!important;border-radius:999px!important}
+
+/* Shared borderless summary: two values separated only by a center hairline. */
+.split-summary{margin-top:4px!important}
+.split-summary .summary-row{position:relative!important;display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;padding:0 8px!important}
+.split-summary .summary-item{position:relative!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:8px!important;min-height:90px!important;padding:16px 14px!important;text-align:left!important;border:0!important;background:transparent!important}
+.split-summary .summary-item+.summary-item::before{content:""!important;position:absolute!important;left:0!important;top:15px!important;bottom:15px!important;width:1px!important;background:#e6e8eb!important}
+.split-summary .summary-item span{font-size:12px!important;color:#737a83!important;font-weight:400!important;white-space:nowrap!important}
+.split-summary .summary-item b{font-size:19px!important;color:#40454d!important;font-weight:500!important;line-height:1.3!important;white-space:nowrap!important}
+.salary-summary-note{margin:14px 8px 0!important;line-height:1.7!important;text-align:left!important}
+
+/* Full-screen, single-color success presentation. */
+.add-flow-layer{background:#dff6ff!important}
+.add-flow-card{top:50%!important;width:min(calc(100vw - 44px),440px)!important;padding:20px 14px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+.add-flow-check{background:#fff!important;box-shadow:none!important}
+.add-flow-detail{width:min(100%,350px)!important;max-width:350px!important;gap:9px!important}
+.add-flow-row{grid-template-columns:minmax(82px,auto) minmax(0,1fr)!important;gap:18px!important;white-space:nowrap!important}
+.add-flow-row-label,.add-flow-row-value{overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+@media(max-width:380px){.add-flow-row{grid-template-columns:78px minmax(0,1fr)!important;gap:12px!important}}
+@media(prefers-reduced-motion:reduce){.salary-month-button{transition:none!important}}
+
+/* v4.85: the year cue sits before the year and the pair is centered as one unit. */
+.practical-card .compare-mini{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:0!important;margin:10px 8px 4px!important;overflow:visible!important}
+.practical-card .compare-mini .mini{position:relative!important;min-width:0!important;padding:14px 10px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
+.practical-card .compare-mini .mini+.mini::before{content:""!important;position:absolute!important;left:0!important;top:10px!important;bottom:10px!important;width:1px!important;background:#e6e8eb!important}
+.practical-card .compare-mini .mini span,.practical-card .compare-mini .mini b{white-space:nowrap!important}
+
+#nisaTopCard.nisa-metrics{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0!important;padding:2px 8px!important;background:transparent!important;border:0!important;box-shadow:none!important}
+#nisaTopCard.nisa-metrics .metric{position:relative!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:8px!important;min-height:94px!important;margin:0!important;padding:16px 14px!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;text-align:left!important}
+#nisaTopCard.nisa-metrics .metric:nth-child(even)::before{content:""!important;position:absolute!important;left:0!important;top:15px!important;bottom:15px!important;width:1px!important;background:#e6e8eb!important}
+#nisaTopCard.nisa-metrics .metric span{font-size:12px!important;font-weight:400!important;color:#737a83!important;white-space:nowrap!important}
+#nisaTopCard.nisa-metrics .metric b{font-size:19px!important;font-weight:500!important;color:#40454d!important;line-height:1.3!important;white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important}
+@media(max-width:365px){#nisaTopCard.nisa-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}#nisaTopCard.nisa-metrics .metric{padding-left:9px!important;padding-right:9px!important}#nisaTopCard.nisa-metrics .metric b{font-size:17px!important}}
+
+#fixedCostCard .fixed-head{align-items:center!important}
+#fixedCostCard .fixed-name{line-height:1.35!important}
+#fixedCostCard .fixed-head .right{align-self:center!important}
+#fixedCostCard .loan-mini{display:flex!important;flex-wrap:wrap!important;gap:7px 14px!important;line-height:1.45!important}
+#fixedCostCard .loan-mini span{display:inline-block!important;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important}
+.life-tabs{margin:4px 0 14px!important}
+.life-tabs button .tab-main{font-size:14px!important}
+.life-tabs button .tab-sub{font-size:10px!important}
+
+/* The SVG nav icons are canonical; suppress legacy pseudo glyphs such as the salary yen mark. */
+nav button::before{content:none!important;display:none!important}
+nav button[data-page="salary"] .navicon,nav button[data-page="salary"].active .navicon{font-size:inherit!important}
+.salary-period-label{display:none!important}
+
+/* v4.86: keep the floating tab bar away from the iOS keyboard and input pickers. */
+nav{
+  opacity:1!important;
+  visibility:visible;
+}
+#navBackdrop{
+  opacity:1;
+  visibility:visible;
+  transition:opacity .20s ease,visibility 0s linear 0s!important;
+}
+body.keyboard-open nav{
+  opacity:0!important;
+  visibility:hidden;
+  pointer-events:none!important;
+  transform:translate3d(0,calc(100% + 42px),0)!important;
+  transition:
+    left .32s cubic-bezier(.22,1,.36,1),
+    right .32s cubic-bezier(.22,1,.36,1),
+    transform .28s cubic-bezier(.22,1,.36,1),
+    opacity .18s ease,
+    visibility 0s linear .28s!important;
+}
+body.keyboard-open #navBackdrop{
+  opacity:0!important;
+  visibility:hidden;
+  transition:opacity .18s ease,visibility 0s linear .20s!important;
+}
+@media(prefers-reduced-motion:reduce){body.keyboard-open nav,body.keyboard-open #navBackdrop{transition:none!important}}
+
+/* v4.89: NISA chart range selector. */
+.nisa-range-tabs{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:4px!important;
+  margin:4px 12px 12px!important;
+  padding:4px!important;
+  border:1px solid #dce8ec!important;
+  border-radius:14px!important;
+  background:#f7fafb!important;
+  box-shadow:none!important;
+}
+.nisa-range-tabs button{
+  min-width:0!important;
+  min-height:38px!important;
+  margin:0!important;
+  padding:7px 8px!important;
+  border:1px solid transparent!important;
+  border-radius:10px!important;
+  background:transparent!important;
+  color:#727b82!important;
+  box-shadow:none!important;
+  font-size:12px!important;
+  font-weight:400!important;
+}
+.nisa-range-tabs button.active{
+  border-color:#a9e7ef!important;
+  background:#eefbfe!important;
+  color:#3f6f79!important;
+}
 </style>
 </head>
 <body>
-<div id="splashscreen" aria-hidden="true"></div>
-<div id="lockscreen" class="hidden">
+<div id="lockscreen">
   <div class="lockbox">
-    <h1>以前のデータを引き継ぐ</h1>
-    <p class="small">通常はパスワードなしで開きます。以前の暗号化データを端末鍵で開けない場合だけ、これまで使っていたパスワードを一度入力してください。</p>
-    <label>以前のパスワード</label><input id="pw" type="password" autocomplete="current-password" placeholder="これまで使っていたもの" onkeydown="if(event.key==='Enter')openOrCreate()">
-    <div class="btnrow"><button type="button" onclick="openOrCreate()">引き継いで開く</button></div>
-    <p class="small">引き継ぎ後は新しい端末鍵で保存し直すため、次回から起動時のパスワード入力はありません。バックアップには別途、保存時に決めるパスワードを使います。</p>
+    <h1>資産メモ</h1>
+    <p class="small">Scriptable内だけで使うローカル版です。v4.89では、NISAグラフへ1年・3年・全期間の切替を追加しました。バックアップを書き出す時もパスワードで暗号化します。</p>
+    <label>パスワード</label><input id="pw" type="password" autocomplete="current-password" placeholder="自分で決めたもの" onkeydown="if(event.key==='Enter')openOrCreate()">
+    <label class="checkline"><input id="remember" type="checkbox">この端末に保存して次回の入力を省略</label>
+    <div class="btnrow"><button type="button" onclick="openOrCreate()">開く</button></div>
+    <p class="small">誤操作防止のため、新規作成・初期化ボタンは表示しません。バックアップ読込は、開いた後の「設定」から行えます。</p>
     <p id="lockmsg" class="small dangerText"></p>
     <div id="debug" class="debug"></div>
   </div>
 </div>
 <header class="appbar">
   <div class="brandmark" id="brandmarkIcon" aria-hidden="true"></div>
-  <div class="headcopy"><h1 id="title">資産</h1><div class="small" id="subtitle">暗号化PWA v1.3</div></div>
+  <div class="headcopy"><h1 id="title">資産</h1><div class="small" id="subtitle">ahamo風フラットUI v4.89</div></div>
 </header>
 <main id="app"></main>
 <nav id="nav" class="hidden">
@@ -5000,6 +5412,7 @@ input[inputmode="numeric"],input[inputmode="decimal"]{
   <button type="button" data-page="life" onclick="show('life')"><span class="navicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19.5s-6.5-3.8-6.5-8.5A3.8 3.8 0 0 1 12 8.4a3.8 3.8 0 0 1 6.5 2.6c0 4.7-6.5 8.5-6.5 8.5z"></path></svg></span><span class="navlabel">生活</span></button>
   <button type="button" data-page="tools" onclick="show('tools')"><span class="navicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16"></path><path d="M7 12h10"></path><path d="M10 17h4"></path></svg></span><span class="navlabel">設定</span></button>
 </nav>
+<div id="navBackdrop" aria-hidden="true"></div>
 <div id="appConfirm" class="app-confirm hidden" aria-hidden="true">
   <div class="app-confirm-backdrop" onclick="resolveAppConfirm(false)"></div>
   <div class="app-confirm-panel" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle">
@@ -5013,21 +5426,17 @@ input[inputmode="numeric"],input[inputmode="decimal"]{
 </div>
 <div id="status" class="status"></div>
 <input id="fileInput" type="file" accept="application/json,.json" class="hidden">
+
+<div id="addFlowLayer" class="add-flow-layer" aria-hidden="true"><div class="add-flow-wash"></div><div class="add-flow-card"><div class="add-flow-check">✓</div><div id="addFlowTitle" class="add-flow-title">追加しました</div><div id="addFlowDetail" class="add-flow-detail"></div></div></div>
+
 <script>
 (function(){
 'use strict';
 
 
 var STORE='finance_scriptable_v4_4_vault';
-var LEGACY_PASSSTORE='finance_scriptable_v49_saved_password';
-var CRYPTO_FORMAT='assetmemo-pwa-aesgcm-v1';
-var KDF_ITERATIONS=310000;
-var DEVICE_KEY_DB='assetmemo-pwa-device-key-v2';
-var DEVICE_KEY_STORE='keys';
-var DEVICE_KEY_ID='vault-key-raw';
-var DEVICE_KEY_FALLBACK='assetmemo_pwa_device_key_v2';
-var DEVICE_KEY_FORMAT='assetmemo-device-key-raw-v1';
-var state=null, password='', salt='', cryptoKey=null, kdfIterations=KDF_ITERATIONS, currentPage='', investTab='nisa', dashMode='latest', dashBreakdown='asset', editingSpecialId='', editingFixedCostId='', pageScrolls={}, programmaticScroll=false, scrollSaveTimer=null, nextAction=null, amountHighlightPlayed=true, amountHighlightPending=false, pendingConfirmAction=null, tabSwitchTimer=null, pageTransitionSeq=0, pageTransitionBusy=false, pendingPageRequest=null, saveRevision=0, saveWriteChain=Promise.resolve(), hiddenAt=0;
+var PASSSTORE='finance_scriptable_v49_saved_password';
+var state=null, password='', salt='', currentPage='', investTab='nisa', lifeTab='special', nisaChartRange='1y', dashMode='latest', dashBreakdown='asset', editingSpecialId='', editingFixedCostId='', editingTransactionId='', pageScrolls={}, programmaticScroll=false, scrollSaveTimer=null, nextAction=null, amountHighlightPlayed=true, amountHighlightPending=false, pendingConfirmAction=null, tabSwitchTimer=null, pageTransitionSeq=0, pageTransitionBusy=false, pendingPageRequest=null, salaryLogYear=(new Date()).getFullYear(), salaryLogMonth=(new Date()).getMonth()+1, mutationBusy=false;
 function $(id){return document.getElementById(id)}
 function setDebug(t){var d=$('debug'); if(d) d.textContent=t||''}
 var memoryStore={};
@@ -5052,101 +5461,67 @@ function storageRemove(k){
   try{ if(window.localStorage){ window.localStorage.removeItem(k); } }catch(e){}
   delete memoryStore[k];
 }
-function openDeviceKeyDb(){
-  return new Promise(function(resolve,reject){
-    try{
-      var req=indexedDB.open(DEVICE_KEY_DB,1);
-      req.onupgradeneeded=function(){
-        var db=req.result;
-        if(!db.objectStoreNames.contains(DEVICE_KEY_STORE))db.createObjectStore(DEVICE_KEY_STORE);
-      };
-      req.onsuccess=function(){resolve(req.result)};
-      req.onerror=function(){reject(req.error||new Error('端末鍵の保存領域を開けません'))};
-    }catch(e){reject(e)}
-  });
-}
-async function serializeDeviceKey(key){
-  requireWebCrypto();
-  var raw=new Uint8Array(await window.crypto.subtle.exportKey('raw',key));
-  if(raw.length!==32)throw new Error('端末内の鍵形式が不正です');
-  return JSON.stringify({format:DEVICE_KEY_FORMAT,algorithm:'AES-GCM',data:b64(raw)});
-}
-async function deserializeDeviceKey(record){
-  requireWebCrypto();
-  var obj=typeof record==='string'?JSON.parse(record):record;
-  if(!obj||obj.format!==DEVICE_KEY_FORMAT||!obj.data)throw new Error('端末内の鍵形式が違います');
-  var raw=unb64(obj.data);
-  if(raw.length!==32)throw new Error('端末内の鍵の長さが不正です');
-  return window.crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt']);
-}
-async function generateDeviceKey(){
-  requireWebCrypto();
-  return window.crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);
-}
-async function saveDeviceKey(key){
-  var record=await serializeDeviceKey(key),saved=false,lastError=null;
-  try{
-    var db=await openDeviceKeyDb();
-    try{
-      await new Promise(function(resolve,reject){
-        var tx=db.transaction(DEVICE_KEY_STORE,'readwrite');
-        tx.objectStore(DEVICE_KEY_STORE).put(record,DEVICE_KEY_ID);
-        tx.oncomplete=function(){resolve()};
-        tx.onerror=function(){reject(tx.error||new Error('端末鍵を保存できません'))};
-        tx.onabort=function(){reject(tx.error||new Error('端末鍵の保存が中断されました'))};
-      });
-      saved=true;
-    }finally{db.close()}
-  }catch(e){lastError=e}
-  try{if(storageSet(DEVICE_KEY_FALLBACK,record))saved=true}catch(e){lastError=lastError||e}
-  if(!saved)throw(lastError||new Error('端末内の鍵を保存できません'));
-  return true;
-}
-async function loadDeviceKey(){
-  var record=null,lastError=null;
-  try{
-    var db=await openDeviceKeyDb();
-    try{
-      record=await new Promise(function(resolve,reject){
-        var tx=db.transaction(DEVICE_KEY_STORE,'readonly');
-        var req=tx.objectStore(DEVICE_KEY_STORE).get(DEVICE_KEY_ID);
-        req.onsuccess=function(){resolve(req.result||null)};
-        req.onerror=function(){reject(req.error||new Error('端末鍵を読み込めません'))};
-      });
-    }finally{db.close()}
-  }catch(e){lastError=e}
-  if(!record)record=storageGet(DEVICE_KEY_FALLBACK);
-  if(!record){if(lastError)setDebug('端末内の保存領域を読み込めませんでした。\n'+String(lastError&&lastError.message||lastError));return null}
-  return deserializeDeviceKey(record);
-}
-async function deleteDeviceKey(){
-  storageRemove(DEVICE_KEY_FALLBACK);
-  try{
-    var db=await openDeviceKeyDb();
-    try{
-      await new Promise(function(resolve,reject){
-        var tx=db.transaction(DEVICE_KEY_STORE,'readwrite');
-        tx.objectStore(DEVICE_KEY_STORE).delete(DEVICE_KEY_ID);
-        tx.oncomplete=function(){resolve()};
-        tx.onerror=function(){reject(tx.error||new Error('端末鍵を削除できません'))};
-      });
-    }finally{db.close()}
-  }catch(e){}
-}
 
-function savePwIfNeeded(){storageRemove(LEGACY_PASSSTORE)}
-function trySavedPassword(){storageRemove(LEGACY_PASSSTORE)}
+function encodeSavedPw(pw){try{return btoa(unescape(encodeURIComponent(pw||'')))}catch(e){return ''}}
+function decodeSavedPw(s){try{return decodeURIComponent(escape(atob(s||'')))}catch(e){return ''}}
+function savePwIfNeeded(pw){try{var cb=$('remember'); if(cb&&cb.checked){storageSet(PASSSTORE,encodeSavedPw(pw));}else{storageRemove(PASSSTORE);}}catch(e){}}
+function trySavedPassword(){try{var raw=storageGet(PASSSTORE); if(raw){var pw=decodeSavedPw(raw); if(pw){$('pw').value=pw; var cb=$('remember'); if(cb)cb.checked=true; setTimeout(openOrCreate,200);}}}catch(e){}}
 window.onerror=function(msg,src,line,col,err){setDebug('エラー: '+msg+'\nline: '+line+' col: '+col); return false};
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
-function today(){return new Date().toISOString().slice(0,10)}
+function localDateString(d){d=d instanceof Date?d:new Date(d||Date.now()); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function today(){return localDateString(new Date())}
 function ym(d){return String(d||today()).slice(0,7)}
-function nextYearDate(){var d=new Date(); d.setFullYear(d.getFullYear()+1); return d.toISOString().slice(0,10)}
+function nextYearDate(){var d=new Date(); d.setFullYear(d.getFullYear()+1); return localDateString(d)}
 function n(v){var x=Number(String(v||'').replace(/[,円¥％%月か年\s]/g,'')); return isFinite(x)?x:0}
 function yen(v){return n(v).toLocaleString('ja-JP',{style:'currency',currency:'JPY',maximumFractionDigits:0})}
 function pct(v){return (isFinite(v)?v:0).toFixed(1)+'%'}
 function monthText(v){v=Number(v); if(!isFinite(v)||v<0)v=0; return v.toFixed(1)+'か月分'}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-function toast(t){var el=$('status'); el.textContent=t; el.classList.add('show'); setTimeout(function(){el.classList.remove('show')},1500)}
+var addFlowTimer=null, addFlowHideTimer=null, toastTimer=null;
+function toast(t){var el=$('status'); if(!el)return; el.textContent=t; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){el.classList.remove('show')},1500)}
+function labelForField(el){
+  var prev=el.previousElementSibling;
+  if(prev&&prev.tagName==='LABEL')return (prev.textContent||'').trim();
+  var wrap=el.parentElement;
+  if(wrap){
+    for(var i=0;i<wrap.children.length;i++){
+      var c=wrap.children[i];
+      if(c===el)break;
+      if(c.tagName==='LABEL')return (c.textContent||'').trim();
+    }
+  }
+  return '';
+}
+function displayValueForField(f,v){
+  if(f.type==='date')return v;
+  if(f.tagName==='SELECT')return v;
+  var lab=labelForField(f);
+  if(/金額|額面|手取り|賞与|税|保険|年金|手当|残高|元本|評価額|入金|目標額|積立額|返済額/.test(lab)){
+    var num=n(v); if(num||String(v).replace(/[,円¥\s]/g,'')==='0')return Math.round(num).toLocaleString('ja-JP')+'円';
+  }
+  return v;
+}
+function hideAddFlow(){
+  var layer=$('addFlowLayer'); if(!layer||!layer.classList.contains('show'))return;
+  clearTimeout(addFlowTimer); clearTimeout(addFlowHideTimer);
+  layer.classList.add('hiding');
+  addFlowHideTimer=setTimeout(function(){layer.classList.remove('show','hiding');layer.setAttribute('aria-hidden','true')},360);
+}
+function playAddFlow(title,items){
+  var layer=$('addFlowLayer'); if(!layer)return;
+  $('addFlowTitle').textContent=title||'追加しました';
+  var detail=$('addFlowDetail'); detail.innerHTML=(items||[]).slice(0,3).map(function(item){return '<div class="add-flow-row"><span class="add-flow-row-label">'+esc(item.label)+'</span><span class="add-flow-row-value">'+esc(item.value)+'</span></div>'}).join('');
+  clearTimeout(addFlowTimer); clearTimeout(addFlowHideTimer);
+  layer.classList.remove('show','hiding'); void layer.offsetWidth; layer.classList.add('show'); layer.setAttribute('aria-hidden','false');
+  addFlowTimer=setTimeout(hideAddFlow,5000);
+}
+function moneyText(v){return Math.round(n(v)).toLocaleString('ja-JP')+'円'}
+function dateText(v){var p=salaryRecordYM({date:v}); if(p)return p.year+'/'+p.month+'/'+(p.day||1); return String(v||'')}
+function monthDisplay(y,m){return Number(y)+'年'+Number(m)+'月'}
+function showSavedVisual(title,items){playAddFlow(title,(items||[]).filter(function(x){return x&&x.label&&String(x.value||'')!==''}).slice(0,3))}
+document.addEventListener('click',function(e){var layer=$('addFlowLayer');if(layer&&layer.classList.contains('show')){e.preventDefault();e.stopPropagation();hideAddFlow()}},true);
+
+
 function emptyState(){return {version:'4.71',settings:{currentAge:24,birthYearEstimate:0,retireAge:65,nisaAnnualReturn:5,nisaSafety:100,cashNow:0,pointsNow:0,studentLoanBalance:0,studentLoanRate:0,studentLoanMonthly:10000,studentLoanPrepay:0,studentLoanPrepayMonth:1,defenseMonths:6,monthlyExpenseManual:0,monthlyBudget:0,netIncomeManual:0,rent:0,housingAllowanceGross:0,housingAllowanceNet:0,housingAllowanceNetRate:80,rentRatioLimit:26,studentLoanPlanRegistered:false,studentLoanPlanStart:'',studentLoanOpeningBalance:0,studentLoanTargetMonths:240,studentLoanBonus:0,furusatoRemainingBonusEstimate:0,furusatoDonatedAmount:0,furusatoFinalConfirmed:false,furusatoTrackingYear:Number(today().slice(0,4))},transactions:[],salary:[],nisa:[],otherInvest:[],specials:[],subs:[],fixedCosts:[],budgets:[]}}
 
 function normalizeState(){
@@ -5166,70 +5541,27 @@ function normalizeState(){
   if((state.fixedCosts||[]).length===0 && (state.subs||[]).length){
     state.fixedCosts=(state.subs||[]).map(function(s){return {id:s.id||uid(),name:s.name||'サブスク',kind:'サブスク',cycle:s.cycle||'月額',amount:n(s.amount),active:s.active!==false}});
   }
-  state.version='4.71';
+  state.version='4.89';
 }
 
 
 function hash32(str){var h=2166136261>>>0; for(var i=0;i<str.length;i++){h^=str.charCodeAt(i); h=Math.imul(h,16777619)} return h>>>0}
-function legacyPrng(seed){var x=seed>>>0; return function(){x^=x<<13; x^=x>>>17; x^=x<<5; return (x>>>0)&255}}
+function randSalt(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}
+function prng(seed){var x=seed>>>0; return function(){x^=x<<13; x^=x>>>17; x^=x<<5; return (x>>>0)&255}}
 function utf8Bytes(str){if(window.TextEncoder){return new TextEncoder().encode(str)}var arr=[]; var e=unescape(encodeURIComponent(str)); for(var i=0;i<e.length;i++)arr.push(e.charCodeAt(i)); return new Uint8Array(arr)}
 function utf8String(bytes){if(window.TextDecoder){return new TextDecoder().decode(bytes)}var s=''; for(var i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]); return decodeURIComponent(escape(s))}
 function b64(bytes){var s='',chunk=0x8000; for(var i=0;i<bytes.length;i+=chunk){s+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunk))} return btoa(s)}
 function unb64(str){var bin=atob(str), out=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i); return out}
-function legacyDecryptObj(data,pw,sa){var bytes=unb64(data); var r=legacyPrng(hash32(pw+'|'+sa)); for(var i=0;i<bytes.length;i++)bytes[i]^=r(); return JSON.parse(utf8String(bytes))}
-function requireWebCrypto(){if(!window.isSecureContext||!window.crypto||!window.crypto.subtle)throw new Error('暗号化機能を利用できません。GitHub PagesのHTTPS URLから開いてください。')}
-function randomB64(length){requireWebCrypto();var bytes=new Uint8Array(length);window.crypto.getRandomValues(bytes);return b64(bytes)}
-async function deriveAesKey(pw,saltB64,iterations){
-  requireWebCrypto();
-  var material=await window.crypto.subtle.importKey('raw',utf8Bytes(pw),'PBKDF2',false,['deriveKey']);
-  return window.crypto.subtle.deriveKey({name:'PBKDF2',salt:unb64(saltB64),iterations:iterations||KDF_ITERATIONS,hash:'SHA-256'},material,{name:'AES-GCM',length:256},true,['encrypt','decrypt']);
-}
-async function encryptSnapshot(snapshot,key,saltB64,iterations){
-  var iv=new Uint8Array(12);window.crypto.getRandomValues(iv);
-  var aad=utf8Bytes(CRYPTO_FORMAT);
-  var encrypted=await window.crypto.subtle.encrypt({name:'AES-GCM',iv:iv,additionalData:aad,tagLength:128},key,utf8Bytes(snapshot));
-  return {format:CRYPTO_FORMAT,version:1,kdf:{name:'PBKDF2',hash:'SHA-256',iterations:iterations||KDF_ITERATIONS,salt:saltB64},cipher:{name:'AES-GCM',iv:b64(iv),tagLength:128},data:b64(new Uint8Array(encrypted))};
-}
-async function decryptAesPayloadWithKey(payload,key){
-  requireWebCrypto();
-  if(!payload||payload.format!==CRYPTO_FORMAT||!payload.kdf||!payload.cipher)throw new Error('暗号化形式が違います');
-  var iterations=Math.min(2000000,Math.max(100000,Number(payload.kdf.iterations)||KDF_ITERATIONS));
-  if(unb64(payload.kdf.salt).length<16||unb64(payload.cipher.iv).length!==12)throw new Error('暗号化パラメータが不正です');
-  var decrypted=await window.crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(payload.cipher.iv),additionalData:utf8Bytes(CRYPTO_FORMAT),tagLength:Number(payload.cipher.tagLength)||128},key,unb64(payload.data));
-  return {state:JSON.parse(utf8String(new Uint8Array(decrypted))),key:key,salt:payload.kdf.salt,iterations:iterations};
-}
-async function decryptAesPayload(payload,pw){
-  requireWebCrypto();
-  if(!payload||payload.format!==CRYPTO_FORMAT||!payload.kdf)throw new Error('暗号化形式が違います');
-  var iterations=Math.min(2000000,Math.max(100000,Number(payload.kdf.iterations)||KDF_ITERATIONS));
-  var key=await deriveAesKey(pw,payload.kdf.salt,iterations);
-  return decryptAesPayloadWithKey(payload,key);
-}
+function encryptObj(obj,pw,sa){var bytes=utf8Bytes(JSON.stringify(obj)); var r=prng(hash32(pw+'|'+sa)); for(var i=0;i<bytes.length;i++)bytes[i]^=r(); return b64(bytes)}
+function decryptObj(data,pw,sa){var bytes=unb64(data); var r=prng(hash32(pw+'|'+sa)); for(var i=0;i<bytes.length;i++)bytes[i]^=r(); return JSON.parse(utf8String(bytes))}
 function save(){
   try{
-    if(!state||!cryptoKey)return Promise.resolve(false);
-    var snapshot=JSON.stringify(state), key=cryptoKey, saltSnapshot=salt, iterationsSnapshot=kdfIterations, revision=++saveRevision;
-    var work=async function(){
-      var payload=await encryptSnapshot(snapshot,key,saltSnapshot,iterationsSnapshot);
-      if(revision!==saveRevision)return false;
-      var persisted=storageSet(STORE,JSON.stringify(payload));
-      if(!persisted)toast('一時保存です。必ずバックアップを書き出してください');
-      return persisted;
-    };
-    saveWriteChain=saveWriteChain.then(work,work).catch(function(e){toast('保存できませんでした');setDebug(String(e&&e.stack||e));return false});
-    return saveWriteChain;
-  }catch(e){toast('保存できませんでした');setDebug(String(e&&e.stack||e));return Promise.resolve(false)}
-}
-function hideSplash(){
-  var splash=$('splashscreen');
-  if(splash)splash.classList.add('hidden');
-}
-function showRecovery(message){
-  hideSplash();
-  $('nav').classList.add('hidden');
-  $('lockscreen').classList.remove('hidden');
-  if($('lockmsg'))$('lockmsg').textContent=message||'以前のパスワードを入力してください。';
-  setTimeout(function(){try{if($('pw'))$('pw').focus()}catch(e){}},120);
+    if(!state||!password)return false;
+    if(!salt)salt=randSalt();
+    var persisted=storageSet(STORE,JSON.stringify({v:1,salt:salt,data:encryptObj(state,password,salt)}));
+    if(!persisted){toast('保存できませんでした。バックアップを書き出してください');return false}
+    return true;
+  }catch(e){toast('保存できませんでした');setDebug(String(e&&e.stack||e));return false}
 }
 function unlock(){
   amountHighlightPlayed=true;
@@ -5243,56 +5575,11 @@ function unlock(){
   enhanceInputs();
   pageScrolls.dash=0;
   window.scrollTo(0,0);
-  requestAnimationFrame(function(){requestAnimationFrame(hideSplash)});
 }
-async function createFreshVault(){
-  cryptoKey=await generateDeviceKey();
-  salt=randomB64(16);
-  kdfIterations=KDF_ITERATIONS;
-  password='';
-  state=emptyState();
-  normalizeState();
-  await saveDeviceKey(cryptoKey);
-  await save();
-  unlock();
-}
-window.openOrCreate=async function(){
-  var btn=document.querySelector('#lockscreen button');
-  try{
-    var pw=$('pw').value||'';
-    if(!pw){$('lockmsg').textContent='以前のパスワードを入力してください';return}
-    if(btn)btn.disabled=true;
-    $('lockmsg').textContent='以前の暗号化データを確認しています…';
-    requireWebCrypto();
-    var raw=storageGet(STORE);
-    if(!raw){await createFreshVault();return}
-    var box=JSON.parse(raw), importedState;
-    if(box&&box.format===CRYPTO_FORMAT){
-      importedState=(await decryptAesPayload(box,pw)).state;
-    }else if(box&&box.v===1&&box.data&&box.salt){
-      importedState=legacyDecryptObj(box.data,pw,box.salt);
-    }else{
-      throw new Error('保存形式が違います');
-    }
-    state=importedState;
-    normalizeState();
-    cryptoKey=await generateDeviceKey();
-    salt=randomB64(16);
-    kdfIterations=KDF_ITERATIONS;
-    password='';
-    await saveDeviceKey(cryptoKey);
-    await save();
-    unlock();
-    toast('引き継ぎました。次回からパスワードは不要です');
-  }catch(e){
-    password='';cryptoKey=null;state=null;
-    $('lockmsg').textContent='引き継げませんでした。パスワードが違うか、データが壊れている可能性があります';
-    setDebug(String(e&&e.message||e));
-  }finally{if(btn)btn.disabled=false}
-}
-window.openExisting=function(){return openOrCreate()}
-window.createNew=function(){return createFreshVault()}
-window.importBackupFromLock=function(){return importBackup(true)}
+window.openOrCreate=function(){try{var pw=$('pw').value||''; if(!pw){$('lockmsg').textContent='パスワードを入力してください';return} var raw=storageGet(STORE); if(raw){var box=JSON.parse(raw); var obj=decryptObj(box.data,pw,box.salt); password=pw; savePwIfNeeded(pw); salt=box.salt; state=obj; normalizeState(); unlock(); toast('開きました'); return} password=pw; savePwIfNeeded(pw); salt=randSalt(); state=emptyState(); normalizeState(); save(); unlock(); toast('初回データを作成しました')}catch(e){$('lockmsg').textContent='開けませんでした。パスワードが違うか、データが壊れている可能性があります'; setDebug(String(e&&e.message||e))}}
+window.openExisting=function(){openOrCreate()}
+window.createNew=function(){openOrCreate()}
+window.importBackupFromLock=function(){var pw=$('pw').value||''; if(!pw){$('lockmsg').textContent='先にパスワードを入力してください';return} password=pw; importBackup(true)}
 
 function pageIconSvg(page){
   var icons={
@@ -5307,7 +5594,7 @@ function pageIconSvg(page){
 }
 function updateBrandmark(page){var bm=$('brandmarkIcon'); if(bm)bm.innerHTML=pageIconSvg(page||currentPage||'dash')}
 
-function setTitle(t,sub){$('title').textContent=t; $('subtitle').textContent=sub||'暗号化PWA v1.3'}
+function setTitle(t,sub){$('title').textContent=t; $('subtitle').textContent=sub||'ahamo風フラットUI v4.89'}
 function setMenuOpen(on){
   var gm=$('globalMenu'), btn=$('menuBtn');
   if(!gm||!btn){document.body.classList.remove('menu-open');return;}
@@ -5507,6 +5794,10 @@ window.jumpTo=function(page,targetId,tab){
   try{
     if(!state)return;
     closeMenu();
+    if(page==='life'){
+      if(targetId==='fixedCostTitle')lifeTab='fixed';
+      else if(targetId==='specialTitle')lifeTab='special';
+    }
     saveCurrentScroll(currentPage);
     requestPageTransition({page:page,restore:false,targetId:targetId||'',tab:tab||''});
   }catch(e){
@@ -5697,8 +5988,8 @@ function monthlyExpenseBase(){return expenseMonth(thisMonth())||monthlyFixedCost
 function defenseAsset(){return n(state.settings.cashNow)+n(state.settings.pointsNow)+nisaValue()}
 function defenseMonths(){var exp=monthlyExpenseBase(); return exp>0?defenseAsset()/exp:0}
 
-function monthEndDate(monthStr){var p=String(monthStr||thisMonth()).split('-'); var d=new Date(Number(p[0]),Number(p[1]),0); return d.toISOString().slice(0,10)}
-function addMonthsToYM(ymstr,delta){var p=String(ymstr||thisMonth()).split('-'); var d=new Date(Number(p[0]),Number(p[1])-1+delta,1); return d.toISOString().slice(0,7)}
+function monthEndDate(monthStr){var p=String(monthStr||thisMonth()).split('-'); return localDateString(new Date(Number(p[0]),Number(p[1]),0))}
+function addMonthsToYM(ymstr,delta){var p=String(ymstr||thisMonth()).split('-'); var d=new Date(Number(p[0]),Number(p[1])-1+delta,1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
 function latestNisaBefore(date){var arr=(state.nisa||[]).filter(function(r){return String(r.date||'')<=date}); return latestByDate(arr)}
 function nisaPrincipalBefore(date){return (state.nisa||[]).filter(function(r){return String(r.date||'')<=date}).reduce(function(a,r){return a+n(r.contribution)},0)}
 function nisaValueBefore(date){return n(latestNisaBefore(date).value)}
@@ -5709,34 +6000,48 @@ function totalDebtCurrent(){return loanBalanceNow()+fixedLoanBalanceTotal()}
 function netWorthCurrent(){return totalAssetsCurrent()-totalDebtCurrent()}
 function totalAssetsAt(date){return n(state.settings.cashNow)+n(state.settings.pointsNow)+nisaValueBefore(date)+otherInvestValue()}
 function compareInfo(mode){var cur=totalAssetsCurrent(); if(mode==='mom'){var d=monthEndDate(addMonthsToYM(thisMonth(),-1)); var prev=totalAssetsAt(d); return {label:'前月末比',main:cur-prev,sub:'最新総資産 '+yen(cur),note:'比較日は '+d+'。現金・ポイント・国債等は最新値で比較します。'}} if(mode==='yoy'){var y=Number(today().slice(0,4))-1; var d=y+'-12-31'; var prev=totalAssetsAt(d); return {label:'前年末比',main:cur-prev,sub:'最新総資産 '+yen(cur),note:'比較日は '+d+'。現金・ポイント・国債等は最新値で比較します。'}} return {label:'総資産',main:cur,sub:'純資産 '+yen(netWorthCurrent()),note:'負債は奨学金残高を差し引いて純資産に反映します。'} }
-function yearTotal(y){y=String(y||today().slice(0,4)); return (state.salary||[]).filter(function(r){return String(r.date).slice(0,4)===y}).reduce(function(a,r){return a+n(r.gross)+n(r.bonus)},0)}
-function fiscalTotal(y){y=Number(y||today().slice(0,4)); var start=y+'-04-01', end=(y+1)+'-03-31'; return (state.salary||[]).filter(function(r){var d=String(r.date||''); return d>=start&&d<=end}).reduce(function(a,r){return a+n(r.gross)+n(r.bonus)},0)}
+function salaryRecordYM(r){
+  r=r||{};
+  var raw=String(r.date||r.payDate||r.salaryDate||r.targetDate||r.ym||r.yearMonth||'').trim();
+  var hit=raw.match(/^(\d{4})\D?\s*(\d{1,2})(?:\D\s*(\d{1,2}))?/);
+  var year=hit?Number(hit[1]):Number(r.year||r.targetYear||r.salaryYear||0);
+  var month=hit?Number(hit[2]):Number(r.month||r.targetMonth||r.salaryMonth||0);
+  var day=hit&&hit[3]?Number(hit[3]):Number(r.day||1);
+  if(!isFinite(year)||year<1900||year>2200||!isFinite(month)||month<1||month>12)return null;
+  if(!isFinite(day)||day<1||day>31)day=1;
+  return {year:year,month:month,day:day,key:year+'-'+String(month).padStart(2,'0')};
+}
+function salaryRowHasMonthlyPay(r){return !!(n(r&&r.gross)||n(r&&r.net)||n(r&&r.housing)||n(r&&r.incomeTax)||n(r&&r.residentTax)||n(r&&r.health)||n(r&&r.pension)||n(r&&r.employment))}
+function salaryRowsForYear(y){y=Number(y);return (state.salary||[]).filter(function(r){var p=salaryRecordYM(r);return p&&p.year===y})}
+function salaryRowsForMonth(y,m){y=Number(y);m=Number(m);return salaryRowsForYear(y).filter(function(r){var p=salaryRecordYM(r);return p&&p.month===m})}
+function salaryMonthMap(y){var out={};salaryRowsForYear(y).forEach(function(r){var p=salaryRecordYM(r);if(p&&salaryRowHasMonthlyPay(r))out[p.month]=true});return out}
+function yearTotal(y){return salaryRowsForYear(Number(y||today().slice(0,4))).reduce(function(a,r){return a+n(r.gross)+n(r.bonus)},0)}
+function fiscalTotal(y){y=Number(y||today().slice(0,4)); return (state.salary||[]).filter(function(r){var p=salaryRecordYM(r);return p&&((p.year===y&&p.month>=4)||(p.year===y+1&&p.month<=3))}).reduce(function(a,r){return a+n(r.gross)+n(r.bonus)},0)}
 function currentFiscalYear(){var d=new Date(); return d.getMonth()+1>=4?d.getFullYear():d.getFullYear()-1}
 function fiscalSalaryRows(fy){
   fy=Number(fy||currentFiscalYear());
-  var start=fy+'-04-01', end=(fy+1)+'-03-31';
   return (state.salary||[]).filter(function(r){
-    var d=String(r.date||'');
-    return d>=start&&d<=end;
+    var p=salaryRecordYM(r);
+    return p&&((p.year===fy&&p.month>=4)||(p.year===fy+1&&p.month<=3));
   });
 }
 function fiscalSalaryMonthCount(fy){
   var months={};
   fiscalSalaryRows(fy).forEach(function(r){
     if(n(r.gross)||n(r.net)||n(r.bonus)){
-      var k=String(r.date||'').slice(0,7);
+      var p=salaryRecordYM(r), k=p&&p.key;
       if(k)months[k]=true;
     }
   });
   return Object.keys(months).length;
 }
 function salarySummaryHtml(){
-  var fy=currentFiscalYear();
-  var count=fiscalSalaryMonthCount(fy);
+  var y=Number(salaryLogYear||today().slice(0,4));
+  var count=Object.keys(salaryMonthMap(y)).length;
   if(count<12){
-    return '<div class="card salary-summary-waiting"><h2>年収サマリー</h2><div class="salary-summary-progress"><span>'+fy+'年度</span><b>'+count+' / 12か月入力済み</b></div><div class="bar"><i style="width:'+Math.min(100,count/12*100)+'%"></i></div><p class="small">4月から翌年3月までの12か月分が揃うと、年度年収を表示します。</p></div>';
+    return '<div class="card salary-summary-waiting"><h2>年収サマリー</h2><div class="summary-grid split-summary"><div class="summary-row"><div class="summary-item"><span>対象年</span><b>'+y+'年</b></div><div class="summary-item"><span>入力状況</span><b>'+count+' / 12か月</b></div></div></div><div class="bar"><i style="width:'+Math.min(100,count/12*100)+'%"></i></div><p class="small salary-summary-note">1月から12月までの給与明細が揃うと、暦年の年収を表示します。同じ月の複数明細は1か月として集計します。</p></div>';
   }
-  return '<div class="card salary-summary-complete"><h2>年収サマリー</h2><div class="summary-grid"><div class="summary-row"><div class="summary-item"><span>'+fy+'年度</span><b>'+yen(fiscalTotal(fy))+'</b></div><div class="summary-item"><span>入力状況</span><b>12 / 12か月</b></div></div></div><p class="small">4月から翌年3月までの給与・賞与の合計です。</p></div>';
+  return '<div class="card salary-summary-complete"><h2>年収サマリー</h2><div class="summary-grid split-summary"><div class="summary-row"><div class="summary-item"><span>'+y+'年の年収</span><b>'+yen(yearTotal(y))+'</b></div><div class="summary-item"><span>入力状況</span><b>12 / 12か月</b></div></div></div><p class="small salary-summary-note">1月から12月までの給与・賞与を合算しています。</p></div>';
 }
 function goldenBudgets(){var net=n(state.settings.netIncomeManual)||incomeMonth(thisMonth()); return {net:net,rent:net*.26,lifeExRent:net*.24,free:net*.3,save:net*.2}}
 function actualMonthlyBudget(){return monthlyFixedCosts()+expenseMonth(thisMonth())}
@@ -5784,7 +6089,7 @@ function formatNumericInput(el){
     else if(isMonth && !el.placeholder){el.placeholder='月数'}
   }
 }
-function enhanceInputs(){var inputs=document.querySelectorAll('input[inputmode="numeric"],input[inputmode="decimal"]'); for(var i=0;i<inputs.length;i++){formatNumericInput(inputs[i]);}}
+function enhanceInputs(){var inputs=document.querySelectorAll('input[inputmode="numeric"],input[inputmode="decimal"]'); for(var i=0;i<inputs.length;i++){formatNumericInput(inputs[i]);} var dates=document.querySelectorAll('input[type="date"]'); for(var j=0;j<dates.length;j++){dates[j].classList.add('smart-date'); dates[j].removeAttribute('readonly'); dates[j].removeAttribute('inputmode');}}
 document.addEventListener('focusin',function(e){if(e.target&&e.target.tagName==='INPUT'&&e.target.value==='0')e.target.value='';});
 document.addEventListener('blur',function(e){formatNumericInput(e.target);},true);
 document.addEventListener('input',function(e){if((e.target&&e.target.id==='set_rent')||(e.target&&e.target.id==='set_housegross')||(e.target&&e.target.id==='set_houserate')){autoHousingNet();}});
@@ -5905,11 +6210,10 @@ function monthlyStatusCard(){
   return html;
 }
 function actionCard(page){
-  if(!nextAction||nextAction.page!==page)return '';
-  return '<div class="card ux-action-card"><div class="ux-action-copy"><b class="ux-action-title">'+esc(nextAction.title||'保存しました')+'</b><p class="small">次の操作を選べます。</p></div><div class="btnrow">'+(nextAction.buttons||[]).map(function(b){return '<button class="secondary" type="button" onclick="'+b.action+'">'+esc(b.label)+'</button>'}).join('')+'<button class="secondary" type="button" onclick="dismissAction()">閉じる</button></div></div>';
+  return '';
 }
-window.dismissAction=function(){nextAction=null; renderPage(currentPage); enhanceInputs();}
-function setAction(page,title,buttons){nextAction={page:page,title:title,buttons:buttons||[]};}
+window.dismissAction=function(){nextAction=null;}
+function setAction(page,title,buttons){nextAction=null;}
 function findById(arr,id){return (state[arr]||[]).filter(function(x){return x.id===id})[0]||null}
 function ensureAppConfirm(){
   var modal=$('appConfirm');
@@ -5965,8 +6269,9 @@ function animateItemRemoval(id,done){
 function deleteItem(arr,id,message,after){
   showAppConfirm(message||'この項目を削除しますか？',function(){
     animateItemRemoval(id,function(){
-      state[arr]=(state[arr]||[]).filter(function(x){return x.id!==id});
-      save();
+      var before=(state[arr]||[]).slice();
+      state[arr]=before.filter(function(x){return x.id!==id});
+      if(!save()){state[arr]=before;if(typeof after==='function')after();return}
       toast('削除しました');
       if(typeof after==='function')after();
     });
@@ -5986,8 +6291,11 @@ window.resetAllInputData=function(){
       pageScrolls={};
       editingSpecialId='';
       editingFixedCostId='';
+      editingTransactionId='';
       dashBreakdown='asset';
       investTab='nisa';
+      lifeTab='special';
+      nisaChartRange='1y';
       amountHighlightPlayed=true;
       amountHighlightPending=false;
       save();
@@ -6003,7 +6311,6 @@ function birthYearFromAge(age){
   var d=new Date(), y=d.getFullYear(), passed=(d.getMonth()+1>9 || (d.getMonth()+1===9 && d.getDate()>=10));
   return y - n(age) - (passed?0:1);
 }
-function monthlyFixedCosts(){return (state.fixedCosts||[]).filter(function(s){return s.active!==false}).reduce(function(sum,s){return sum+(s.cycle==='年額'?n(s.amount)/12:n(s.amount))},0)}
 window.setDashMode=function(m){dashMode=m; dash();}
 function animateTwoChoice(selector,toRight,done){
   var el=document.querySelector(selector);
@@ -6089,10 +6396,11 @@ function salaryPage(){
   setTitle('給与','給与明細・年収サマリー');
   var html='';
   html+=actionCard('salary');
-  html+='<div id="salaryCard" class="card"><h2 id="salaryTitle">給与明細</h2><div class="row"><div><label>年月日</label><input id="sal_date" type="date" value="'+today()+'"></div><div><label>額面</label><input id="sal_gross" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>手取り</label><input id="sal_net" inputmode="numeric" placeholder="円"></div><div><label>賞与</label><input id="sal_bonus" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>所得税</label><input id="sal_tax" inputmode="numeric" placeholder="円"></div><div><label>住民税</label><input id="sal_resident" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>健康保険</label><input id="sal_health" inputmode="numeric" placeholder="円"></div><div><label>厚生年金</label><input id="sal_pension" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>雇用保険</label><input id="sal_employ" inputmode="numeric" placeholder="円"></div><div><label>住宅手当</label><input id="sal_house" inputmode="numeric" placeholder="円"></div></div><label>メモ</label><input id="sal_memo" placeholder="任意"><div class="btnrow"><button onclick="addSalary()">給与明細を追加</button></div></div>';
+  html+='<div id="salaryCard" class="card"><h2 id="salaryTitle">給与明細</h2><div class="row"><div><label>年月日</label><input id="sal_date" type="date" value="'+today()+'"></div><div><label>額面</label><input id="sal_gross" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>手取り</label><input id="sal_net" inputmode="numeric" placeholder="円"></div><div><label>賞与</label><input id="sal_bonus" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>所得税</label><input id="sal_tax" inputmode="numeric" placeholder="円"></div><div><label>住民税</label><input id="sal_resident" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>健康保険</label><input id="sal_health" inputmode="numeric" placeholder="円"></div><div><label>厚生年金</label><input id="sal_pension" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>雇用保険</label><input id="sal_employ" inputmode="numeric" placeholder="円"></div><div><label>住宅手当</label><input id="sal_house" inputmode="numeric" placeholder="円"></div></div><label>メモ</label><input id="sal_memo" placeholder="任意"><div class="btnrow"><button type="button" onclick="addSalary()">給与明細を追加</button></div></div>';
+  html+='<div class="card salary-period-card"><h2>給与明細ログ</h2>'+salaryPeriodSelectorHtml()+'<div id="salaryLogResults">'+listSalary()+'</div></div>';
   html+=salarySummaryHtml();
-  html+='<div class="card"><h2>給与明細ログ</h2>'+listSalary()+'</div>';
   $('app').innerHTML=html;
+  setTimeout(function(){enhanceInputs();centerSelectedSalaryMonth()},0);
 }
 window.fillTxPreset=function(memo,cat,kind,type){
   var m=$('tx_memo'), c=$('tx_cat'), k=$('tx_kind'), t=$('tx_type'), a=$('tx_amount');
@@ -6103,32 +6411,80 @@ window.fillTxPreset=function(memo,cat,kind,type){
   if(a)a.focus();
 }
 window.addTx=function(){
-  state.transactions.push({id:uid(),date:$('tx_date').value||today(),type:$('tx_type').value||'支出',amount:n($('tx_amount').value),category:$('tx_cat').value||'',kind:$('tx_kind').value||'変動費',memo:$('tx_memo').value||''});
-  save(); setAction('entry','収支を保存しました',[{label:'続けて入力',action:'jumpTo(\'entry\',\'txInputTitle\')'},{label:'トップへ',action:'show(\'dash\')'}]); entry(); enhanceInputs(); toast('収支を追加しました');
+  var row={id:uid(),date:$('tx_date').value||today(),type:$('tx_type').value||'支出',amount:n($('tx_amount').value),category:$('tx_cat').value||'',kind:$('tx_kind').value||'変動費',memo:$('tx_memo').value||''};
+  state.transactions.push(row);if(!save()){state.transactions.pop();return}
+  setAction('entry','収支を保存しました',[{label:'続けて入力',action:'jumpTo(\'entry\',\'txInputTitle\')'},{label:'トップへ',action:'show(\'dash\')'}]);entry();enhanceInputs();
+  showSavedVisual('収支を追加しました',[{label:'日付',value:dateText(row.date)},{label:'金額',value:moneyText(row.amount)},{label:'カテゴリ',value:row.category||'未分類'}]);toast('収支を追加しました');
 }
-window.delTxById=function(id){var r=findById('transactions',id); var msg='この収支を削除しますか？\n\n'+(r?(r.date+' '+(r.type||'')+' '+(r.category||'未分類')+' '+yen(r.amount)):'選択した収支'); deleteItem('transactions',id,msg,entry)}
+window.editTxById=function(id){editingTransactionId=id;entry();setTimeout(function(){var el=$('edit_tx_'+id);if(el&&el.scrollIntoView)el.scrollIntoView({block:'center'})},30)}
+window.cancelTxEdit=function(){editingTransactionId='';entry()}
+window.saveTxEdit=function(btn){
+  var id=btn&&btn.dataset?btn.dataset.id:'', before=(state.transactions||[]).map(function(r){return Object.assign({},r)});
+  var date=$('edit_tx_date_'+id),type=$('edit_tx_type_'+id),category=$('edit_tx_cat_'+id),kind=$('edit_tx_kind_'+id),amount=$('edit_tx_amount_'+id),memo=$('edit_tx_memo_'+id);
+  state.transactions=(state.transactions||[]).map(function(r){if(r.id===id){r.date=(date&&date.value)||r.date||today();r.type=(type&&type.value)||r.type||'支出';r.category=(category&&category.value)||'';r.kind=(kind&&kind.value)||'変動費';r.amount=n(amount&&amount.value);r.memo=(memo&&memo.value)||''}return r});
+  if(!save()){state.transactions=before;entry();return}
+  editingTransactionId='';entry();toast('収支を保存しました');
+}
+window.delTxById=function(id){var r=findById('transactions',id); var msg='この収支を削除しますか？\n\n'+(r?(r.date+' '+(r.type||'')+' '+(r.category||'未分類')+' '+yen(r.amount)):'選択した収支'); deleteItem('transactions',id,msg,function(){if(editingTransactionId===id)editingTransactionId='';entry()})}
 function listTx(){
   var arr=(state.transactions||[]).slice().sort(function(a,b){return String(b.date).localeCompare(String(a.date))}).slice(0,20);
   if(!arr.length)return '<p class="small">入力なし</p>';
   return arr.map(function(r){
+    if(editingTransactionId===r.id){
+      return '<div id="edit_tx_'+esc(r.id)+'" class="listitem tx-item fixed-editing"><div class="edit-box fixed-edit-box"><label>日付</label><input id="edit_tx_date_'+esc(r.id)+'" type="date" value="'+esc(r.date||today())+'"><div class="row"><div><label>収入/支出</label><select id="edit_tx_type_'+esc(r.id)+'"><option'+(r.type==='支出'?' selected':'')+'>支出</option><option'+(r.type==='収入'?' selected':'')+'>収入</option></select></div><div><label>固定費/変動費</label><select id="edit_tx_kind_'+esc(r.id)+'"><option'+(r.kind==='変動費'?' selected':'')+'>変動費</option><option'+(r.kind==='固定費'?' selected':'')+'>固定費</option></select></div></div><label>カテゴリ</label><input id="edit_tx_cat_'+esc(r.id)+'" value="'+esc(r.category||'')+'"><label>金額</label><input id="edit_tx_amount_'+esc(r.id)+'" inputmode="numeric" value="'+inputMoney(r.amount)+'" placeholder="円"><label>メモ</label><input id="edit_tx_memo_'+esc(r.id)+'" value="'+esc(r.memo||'')+'"><div class="btnrow"><button type="button" data-id="'+esc(r.id)+'" onclick="saveTxEdit(this)">保存</button><button class="secondary" type="button" onclick="cancelTxEdit()">キャンセル</button></div></div></div>';
+    }
     var sign=r.type==='収入'?'+':'-';
     var cls=r.type==='収入'?'delta-pos':'delta-neg';
     var typeTag=r.type==='収入'?'<span class="pill income-pill">収入</span>':'';
-    return '<div class="listitem tx-item"><div class="tx-head"><div>'+typeTag+'<b class="tx-title">'+esc(r.category||'未分類')+'</b></div><b class="right '+cls+'">'+sign+yen(r.amount)+'</b></div><div class="small">'+esc(r.date)+' / '+esc(r.kind||'')+(r.memo?' / '+esc(r.memo):'')+'</div><div class="item-actions"><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="delTxById(this.dataset.id)">削除</button></div></div>';
+    return '<div class="listitem tx-item"><div class="tx-head"><div>'+typeTag+'<b class="tx-title">'+esc(r.category||'未分類')+'</b></div><b class="right '+cls+'">'+sign+yen(r.amount)+'</b></div><div class="small">'+esc(r.date)+' / '+esc(r.kind||'')+(r.memo?' / '+esc(r.memo):'')+'</div><div class="item-actions"><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="editTxById(this.dataset.id)">編集</button><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="delTxById(this.dataset.id)">削除</button></div></div>';
   }).join('');
 }
 window.addSalary=function(){
   var salaryDate=$('sal_date').value||today();
-  state.salary.push({id:uid(),date:salaryDate,gross:n($('sal_gross').value),net:n($('sal_net').value),incomeTax:n($('sal_tax').value),residentTax:n($('sal_resident').value),health:n($('sal_health').value),pension:n($('sal_pension').value),employment:n($('sal_employ').value),housing:n($('sal_house').value),bonus:n($('sal_bonus').value),memo:$('sal_memo').value||''});
+  var row={id:uid(),date:salaryDate,gross:n($('sal_gross').value),net:n($('sal_net').value),incomeTax:n($('sal_tax').value),residentTax:n($('sal_resident').value),health:n($('sal_health').value),pension:n($('sal_pension').value),employment:n($('sal_employ').value),housing:n($('sal_house').value),bonus:n($('sal_bonus').value),memo:$('sal_memo').value||''};
+  state.salary.push(row);
   if(String(salaryDate).slice(0,4)===today().slice(0,4))state.settings.furusatoFinalConfirmed=false;
-  save(); setAction('salary','給与明細を保存しました',[{label:'税金試算へ',action:'jumpTo(\'tools\',\'taxSimTitle\')'},{label:'トップへ',action:'show(\'dash\')'}]); salaryPage(); enhanceInputs(); toast('給与明細を追加しました');
+  if(!save()){state.salary.pop();return}
+  var p=salaryRecordYM(row);salaryLogYear=p.year;salaryLogMonth=p.month;
+  setAction('salary','給与明細を保存しました',[{label:'税金試算へ',action:'jumpTo(\'tools\',\'taxSimTitle\')'},{label:'トップへ',action:'show(\'dash\')'}]); salaryPage();
+  showSavedVisual('給与明細を追加しました',[{label:'対象月',value:monthDisplay(p.year,p.month)},{label:'手取り',value:moneyText(row.net)},{label:'支給額',value:moneyText(n(row.gross)+n(row.bonus))}]);toast('給与明細を追加しました');
 }
 window.delSalaryById=function(id){var r=findById('salary',id); var msg='この給与明細を削除しますか？\n\n'+(r?(r.date+' 手取り '+yen(r.net)+' / 額面 '+yen(r.gross)):'選択した給与明細'); deleteItem('salary',id,msg,function(){if(r&&String(r.date||'').slice(0,4)===today().slice(0,4)){state.settings.furusatoFinalConfirmed=false;save()}salaryPage()})}
+function salaryPeriodSelectorHtml(){
+  var months='';
+  for(var m=1;m<=12;m++)months+='<button type="button" class="salary-month-button '+(m===Number(salaryLogMonth)?'selected':'')+'" data-month="'+m+'" aria-pressed="'+(m===Number(salaryLogMonth)?'true':'false')+'" onclick="selectSalaryMonth('+m+',this)">'+m+'月</button>';
+  return '<div class="salary-year-row"><label class="salary-year-select-wrap" aria-label="表示年を選択"><span class="salary-year-cue" aria-hidden="true">›</span><select id="salaryYearSelect" class="salary-year-select" onchange="selectSalaryYear(this.value)">'+salaryYearOptionsHtml()+'</select></label></div><div class="salary-month-strip" id="salaryMonthStrip">'+months+'</div>';
+}
+function salaryYearOptionsHtml(){
+  var current=(new Date()).getFullYear(), years={};
+  for(var y=current-5;y<=current+1;y++)years[y]=true;
+  (state.salary||[]).forEach(function(r){var p=salaryRecordYM(r);if(p)years[p.year]=true});
+  years[Number(salaryLogYear)]=true;
+  return Object.keys(years).map(Number).sort(function(a,b){return b-a}).map(function(y){return '<option value="'+y+'"'+(y===Number(salaryLogYear)?' selected':'')+'>'+y+'年</option>'}).join('');
+}
+function centerSelectedSalaryMonth(){var strip=$('salaryMonthStrip'),sel=strip&&strip.querySelector('.salary-month-button.selected');if(!strip||!sel)return;var left=sel.offsetLeft-(strip.clientWidth-sel.offsetWidth)/2;try{strip.scrollTo({left:Math.max(0,left),behavior:'smooth'})}catch(e){strip.scrollLeft=Math.max(0,left)}}
+window.selectSalaryMonth=function(month,btn){
+  month=Math.max(1,Math.min(12,Number(month)||1));
+  var old=document.querySelector('.salary-month-button.selected');
+  if(old===btn)return;
+  if(old){old.classList.remove('selected');old.setAttribute('aria-pressed','false')}
+  salaryLogMonth=month;
+  if(btn){btn.classList.add('selected');btn.setAttribute('aria-pressed','true')}
+  var results=$('salaryLogResults');if(results)results.innerHTML=listSalary();
+  enhanceInputs();
+}
+window.selectSalaryYear=function(year){
+  salaryLogYear=Math.max(1900,Math.min(2200,Number(year)||Number(salaryLogYear)));
+  var map=salaryMonthMap(salaryLogYear), available=Object.keys(map).map(Number).sort(function(a,b){return a-b});
+  if(available.length&&available.indexOf(Number(salaryLogMonth))<0)salaryLogMonth=available[available.length-1];
+  else if(!available.length&&salaryLogYear===(new Date()).getFullYear())salaryLogMonth=(new Date()).getMonth()+1;
+  salaryPage();
+}
 function listSalary(){
-  var arr=(state.salary||[]).slice().sort(function(a,b){return String(b.date).localeCompare(String(a.date))}).slice(0,12);
-  if(!arr.length)return '<p class="small">入力なし</p>';
+  var arr=salaryRowsForMonth(salaryLogYear,salaryLogMonth).slice().sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''))});
+  if(!arr.length)return '<div class="salary-empty">この月の給与明細はありません。</div>';
   return '<div class="salary-history-list">'+arr.map(function(r){
-    return '<div class="salary-history-item"><div class="salary-history-head"><span class="salary-history-date">'+esc(r.date)+'</span><b class="salary-history-value">手取り '+yen(r.net)+'</b></div><div class="salary-history-main">額面 '+yen(r.gross)+(n(r.bonus)?' / 賞与 '+yen(r.bonus):'')+'</div><div class="salary-history-meta">所得税 '+yen(r.incomeTax)+' / 住民税 '+yen(r.residentTax)+' / 健康保険 '+yen(r.health)+' / 厚生年金 '+yen(r.pension)+' / 雇用保険 '+yen(r.employment)+' / 住宅手当 '+yen(r.housing)+'</div>'+(r.memo?'<div class="salary-history-memo">'+esc(r.memo)+'</div>':'')+'<div class="salary-history-actions"><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="delSalaryById(this.dataset.id)">削除</button></div></div>';
+    return '<div class="salary-history-item"><div class="salary-history-head"><span class="salary-history-date">'+esc(r.date)+'</span><b class="salary-history-value">手取り '+yen(r.net)+'</b></div><div class="salary-history-main"><span>額面 '+yen(r.gross)+'</span>'+(n(r.bonus)?'<span>賞与 '+yen(r.bonus)+'</span>':'')+'</div><div class="salary-history-meta"><span>所得税 '+yen(r.incomeTax)+'</span><span>住民税 '+yen(r.residentTax)+'</span><span>健康保険 '+yen(r.health)+'</span><span>厚生年金 '+yen(r.pension)+'</span><span>雇用保険 '+yen(r.employment)+'</span><span>住宅手当 '+yen(r.housing)+'</span></div>'+(r.memo?'<div class="salary-history-memo">'+esc(r.memo)+'</div>':'')+'<div class="salary-history-actions"><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="delSalaryById(this.dataset.id)">削除</button></div></div>';
   }).join('')+'</div>';
 }
 function metric(label,value,cls){return '<div class="metric"><span>'+esc(label)+'</span><b class="'+(cls||'')+'">'+value+'</b></div>'}
@@ -6152,17 +6508,43 @@ window.showNisaPointFromEl=function(el,ev){
   el.setAttribute('aria-pressed','true');
   window.showNisaPoint(el.getAttribute('data-date')||'',el.getAttribute('data-label')||'',el.getAttribute('data-amount')||'',ev);
 }
+function nisaRangeTabsHtml(){
+  return '<div class="nisa-range-tabs" role="tablist" aria-label="NISAグラフ表示期間">'
+    +'<button type="button" role="tab" aria-selected="'+(nisaChartRange==='1y'?'true':'false')+'" class="'+(nisaChartRange==='1y'?'active':'')+'" onclick="setNisaChartRange(\'1y\')">1年</button>'
+    +'<button type="button" role="tab" aria-selected="'+(nisaChartRange==='3y'?'true':'false')+'" class="'+(nisaChartRange==='3y'?'active':'')+'" onclick="setNisaChartRange(\'3y\')">3年</button>'
+    +'<button type="button" role="tab" aria-selected="'+(nisaChartRange==='all'?'true':'false')+'" class="'+(nisaChartRange==='all'?'active':'')+'" onclick="setNisaChartRange(\'all\')">全期間</button>'
+    +'</div>';
+}
+window.setNisaChartRange=function(range){
+  if(['1y','3y','all'].indexOf(range)<0||range===nisaChartRange)return;
+  nisaChartRange=range;
+  if(currentPage==='dash')dash();
+  else invest();
+}
 function nisaChart(){
-  var arr=(state.nisa||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date))}).slice(-12);
-  if(arr.length<2)return '<p class="small">NISA月次を2件以上入力すると表示されます。</p>';
+  var controls=nisaRangeTabsHtml();
+  var all=(state.nisa||[]).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date))});
+  if(all.length<2)return controls+'<p class="small">NISA月次を2件以上入力すると表示されます。</p>';
+  var cumulative=0,monthlyLatest={};
+  all.forEach(function(row){
+    cumulative+=n(row.contribution);
+    var key=ym(row.date);
+    monthlyLatest[key]={row:row,principal:cumulative,month:key};
+  });
+  var monthly=Object.keys(monthlyLatest).sort().map(function(key){return monthlyLatest[key]});
+  if(monthly.length<2)return controls+'<p class="small">異なる月のNISA記録を2か月以上入力すると表示されます。</p>';
+  function monthNumber(key){var p=String(key).split('-');return Number(p[0])*12+Number(p[1])-1}
+  var endMonth=monthNumber(monthly[monthly.length-1].month);
+  var rangeMonths=nisaChartRange==='1y'?12:(nisaChartRange==='3y'?36:0);
+  var arr=rangeMonths?monthly.filter(function(item){return monthNumber(item.month)>=endMonth-rangeMonths+1}):monthly;
+  if(arr.length<2)return controls+'<p class="small">選択した期間内に、異なる月の記録が2件以上必要です。</p>';
   var W=640,H=320,L=72,R=26,T=46,B=58;
-  var vals=[],cum=0,ptsPrincipal=[],ptsValue=[],labels=[];
+  var vals=[],ptsPrincipal=[],ptsValue=[],labels=[];
   for(var i=0;i<arr.length;i++){
-    cum+=n(arr[i].contribution);
-    vals.push(cum,n(arr[i].value));
-    ptsPrincipal.push(cum);
-    ptsValue.push(n(arr[i].value));
-    labels.push(ym(arr[i].date));
+    vals.push(arr[i].principal,n(arr[i].row.value));
+    ptsPrincipal.push(arr[i].principal);
+    ptsValue.push(n(arr[i].row.value));
+    labels.push(arr[i].month);
   }
   var max=Math.max.apply(null,vals.concat([1])),min=Math.min.apply(null,vals.concat([0]));
   if(max===min){max+=1;min-=1}
@@ -6181,13 +6563,20 @@ function nisaChart(){
   var last=labels.length-1;
   if((last%step)!==0){var p2=xy(ptsPrincipal[last],last);xlabels+='<text x="'+p2[0].toFixed(1)+'" y="'+(H-22)+'" text-anchor="middle" class="chart-axis-label">'+labels[last].slice(2).replace('-','/')+'</text>'}
   var points='';
+  var maxMarkers=nisaChartRange==='1y'?12:18;
+  var markerCount=Math.min(maxMarkers,arr.length),markerIndexes={};
+  for(var marker=0;marker<markerCount;marker++){
+    var markerIndex=markerCount===1?0:Math.round(marker*(arr.length-1)/(markerCount-1));
+    markerIndexes[markerIndex]=true;
+  }
   for(var k=0;k<arr.length;k++){
+    if(!markerIndexes[k])continue;
     var pv=xy(ptsValue[k],k),pp=xy(ptsPrincipal[k],k);
-    points+='<g class="chart-hit" role="button" tabindex="0" aria-pressed="false" data-date="'+esc(arr[k].date)+'" data-label="元本" data-amount="'+esc(yen(ptsPrincipal[k]))+'" aria-label="'+esc(arr[k].date)+' 元本 '+yen(ptsPrincipal[k])+'" onclick="showNisaPointFromEl(this,event)" onkeydown="if(event.keyCode===13||event.keyCode===32){showNisaPointFromEl(this,event)}"><circle cx="'+pp[0].toFixed(1)+'" cy="'+pp[1].toFixed(1)+'" r="17" class="chart-hit-target"></circle><circle cx="'+pp[0].toFixed(1)+'" cy="'+pp[1].toFixed(1)+'" r="4.8" class="chart-point principal"></circle></g>';
-    points+='<g class="chart-hit" role="button" tabindex="0" aria-pressed="false" data-date="'+esc(arr[k].date)+'" data-label="評価額" data-amount="'+esc(yen(ptsValue[k]))+'" aria-label="'+esc(arr[k].date)+' 評価額 '+yen(ptsValue[k])+'" onclick="showNisaPointFromEl(this,event)" onkeydown="if(event.keyCode===13||event.keyCode===32){showNisaPointFromEl(this,event)}"><circle cx="'+pv[0].toFixed(1)+'" cy="'+pv[1].toFixed(1)+'" r="17" class="chart-hit-target"></circle><circle cx="'+pv[0].toFixed(1)+'" cy="'+pv[1].toFixed(1)+'" r="4.8" class="chart-point value"></circle></g>';
+    points+='<g class="chart-hit" role="button" tabindex="0" aria-pressed="false" data-date="'+esc(arr[k].row.date)+'" data-label="元本" data-amount="'+esc(yen(ptsPrincipal[k]))+'" aria-label="'+esc(arr[k].row.date)+' 元本 '+yen(ptsPrincipal[k])+'" onclick="showNisaPointFromEl(this,event)" onkeydown="if(event.keyCode===13||event.keyCode===32){showNisaPointFromEl(this,event)}"><circle cx="'+pp[0].toFixed(1)+'" cy="'+pp[1].toFixed(1)+'" r="17" class="chart-hit-target"></circle><circle cx="'+pp[0].toFixed(1)+'" cy="'+pp[1].toFixed(1)+'" r="4.8" class="chart-point principal"></circle></g>';
+    points+='<g class="chart-hit" role="button" tabindex="0" aria-pressed="false" data-date="'+esc(arr[k].row.date)+'" data-label="評価額" data-amount="'+esc(yen(ptsValue[k]))+'" aria-label="'+esc(arr[k].row.date)+' 評価額 '+yen(ptsValue[k])+'" onclick="showNisaPointFromEl(this,event)" onkeydown="if(event.keyCode===13||event.keyCode===32){showNisaPointFromEl(this,event)}"><circle cx="'+pv[0].toFixed(1)+'" cy="'+pv[1].toFixed(1)+'" r="17" class="chart-hit-target"></circle><circle cx="'+pv[0].toFixed(1)+'" cy="'+pv[1].toFixed(1)+'" r="4.8" class="chart-point value"></circle></g>';
   }
   var svg='<div class="ahamo-chart-wrap"><div class="chart-legend"><span class="principal">元本</span><span class="value">評価額</span></div><div id="nisaPointInfo" class="nisa-point-info" aria-live="polite"><span>グラフの点をタップ</span><span>入力日と金額を表示します</span></div><svg class="nisa-chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="NISA元本と評価額の推移">'+grid+xlabels+'<polyline points="'+poly(ptsPrincipal)+'" class="chart-line principal"/><polyline points="'+poly(ptsValue)+'" class="chart-line value"/>'+points+'</svg></div>';
-  return svg+'<p class="small chart-note">元本または評価額の点を1回タップすると、入力日と金額を確認できます。</p>';
+  return controls+svg+'<p class="small chart-note">各月の最新記録を表示します。長期表示では見やすさのためタップ用の点を間引いています。</p>';
 
 }
 function invest(){var isNisa=investTab==='nisa'; setTitle('投資',isNisa?'表示中：NISA専用':'表示中：国債・個別株など'); var html='<div class="invest-tabs compact animated-choice '+(isNisa?'choice-left':'choice-right')+'" role="tablist" aria-label="投資ページ切替"><button type="button" role="tab" aria-selected="'+(isNisa?'true':'false')+'" class="'+(isNisa?'active':'')+'" onclick="showNisaTab()"><span class="tab-main">NISA</span><span class="tab-sub">月次入力・推移</span></button><button type="button" role="tab" aria-selected="'+(!isNisa?'true':'false')+'" class="'+(!isNisa?'active':'')+'" onclick="showOtherTab()"><span class="tab-main">国債・個別株</span><span class="tab-sub">その他投資</span></button></div>'; html+=isNisa?nisaPage():otherPage(); $('app').innerHTML=html; setTimeout(enhanceInputs,0)}
@@ -6207,7 +6596,7 @@ function nisaPage(){
   return actionCard('invest')+'<div id="nisaTopCard" class="grid nisa-metrics"><div class="metric"><span>累計元本</span><b>'+yen(principal)+'</b></div><div class="metric"><span>評価額</span><b>'+yen(value)+'</b></div><div class="metric"><span>損益</span><b class="'+deltaClass(profit)+'">'+signedYen(profit)+'</b></div><div class="metric"><span>損益率</span><b>'+pct(principal?profit/principal*100:0)+'</b></div><div class="metric"><span>年初来 概算</span><b class="'+deltaClass(ytd)+'">'+signedPct(ytd)+'</b></div><div class="metric"><span>65歳概算</span><b>'+yen(future)+'</b></div></div><div id="nisaInputCard" class="card"><h2 id="nisaInputTitle">NISA月次入力</h2><div class="row"><div><label>日付</label><input id="nisa_date" type="date" value="'+today()+'"></div><div><label>今月の入金額</label><input id="nisa_contrib" inputmode="numeric" placeholder="円"></div></div><label>現在評価額</label><input id="nisa_value" inputmode="numeric" placeholder="円" value="'+inputMoney(l.value)+'"><div class="btnrow"><button onclick="addNisa()">NISA月次を追加</button></div><p class="small">65歳概算：元本 '+yen(futurePrincipal)+' / 運用益 '+yen(futureProfit)+' / 総額 '+yen(future)+'。今月入金額を変えると次回計算に反映されます。</p></div><div class="card" id="nisaGraphCard"><h2>元本・評価額グラフ</h2>'+nisaChart()+'</div><div class="card"><h2>履歴</h2>'+listNisa()+'</div>'
 }
 window.delNisaById=function(id){var r=findById('nisa',id); var msg='このNISA月次データを削除しますか？\n\n'+(r?(r.date+' 入金 '+yen(r.contribution)+' / 評価額 '+yen(r.value)):'選択したNISAデータ'); deleteItem('nisa',id,msg,invest)}
-window.addNisa=function(){state.nisa.push({id:uid(),date:$('nisa_date').value||today(),contribution:n($('nisa_contrib').value),value:n($('nisa_value').value)}); save(); setAction('invest','NISA月次を保存しました',[{label:'グラフを見る',action:'jumpTo(\'invest\',\'nisaGraphCard\',\'nisa\')'},{label:'トップへ',action:'show(\'dash\')'}]); invest(); toast('NISAを追加しました')}
+window.addNisa=function(){var row={id:uid(),date:$('nisa_date').value||today(),contribution:n($('nisa_contrib').value),value:n($('nisa_value').value)};state.nisa.push(row);if(!save()){state.nisa.pop();return}setAction('invest','NISA月次を保存しました',[{label:'グラフを見る',action:'jumpTo(\'invest\',\'nisaGraphCard\',\'nisa\')'},{label:'トップへ',action:'show(\'dash\')'}]);invest();showSavedVisual('NISA月次を追加しました',[{label:'日付',value:dateText(row.date)},{label:'評価額',value:moneyText(row.value)},{label:'種類',value:'NISA'}]);toast('NISAを追加しました')}
 function listNisa(){
   var arr=(state.nisa||[]).slice().sort(function(a,b){return String(b.date).localeCompare(String(a.date))}).slice(0,12);
   if(!arr.length)return '<p class="small">入力なし</p>';
@@ -6221,7 +6610,7 @@ function listNisa(){
 }
 function otherPage(){return '<div id="otherInvestCard" class="card"><h2>国債・個別株・その他投資</h2><div class="row"><div><label>日付</label><input id="oi_date" type="date" value="'+today()+'"></div><div><label>種類</label><select id="oi_type"><option>国債</option><option>個別株</option><option>投資信託</option><option>その他</option></select></div></div><label>名称</label><input id="oi_name" placeholder="個人向け国債・銘柄名など"><div class="row"><div><label>元本/買付額</label><input id="oi_principal" inputmode="numeric"></div><div><label>現在評価額</label><input id="oi_value" inputmode="numeric"></div></div><div class="btnrow"><button onclick="addOtherInvest()">追加</button></div></div><div class="card"><h2>一覧</h2>'+listOtherInvest()+'</div>'}
 window.delOtherInvestById=function(id){var r=findById('otherInvest',id); var msg='この投資項目を削除しますか？\n\n'+(r?((r.type||'')+' '+(r.name||'名称なし')+' / 評価額 '+yen(r.value)):'選択した投資項目'); deleteItem('otherInvest',id,msg,invest)}
-window.addOtherInvest=function(){state.otherInvest.push({id:uid(),date:$('oi_date').value||today(),type:$('oi_type').value,name:$('oi_name').value||'',principal:n($('oi_principal').value),value:n($('oi_value').value)}); save(); invest(); toast('追加しました')}
+window.addOtherInvest=function(){var row={id:uid(),date:$('oi_date').value||today(),type:$('oi_type').value,name:$('oi_name').value||'',principal:n($('oi_principal').value),value:n($('oi_value').value)};state.otherInvest.push(row);if(!save()){state.otherInvest.pop();return}invest();showSavedVisual('投資を追加しました',[{label:'日付',value:dateText(row.date)},{label:'評価額',value:moneyText(row.value)},{label:'種類',value:row.type||'その他'}]);toast('追加しました')}
 function listOtherInvest(){
   var arr=(state.otherInvest||[]).slice().sort(function(a,b){return String(b.date).localeCompare(String(a.date))});
   if(!arr.length)return '<p class="small">入力なし。国債を買うか迷っている間は空欄でOKです。</p>';
@@ -6230,15 +6619,48 @@ function listOtherInvest(){
     return '<div class="investment-history-item other-invest-history-item"><div class="investment-history-head"><div><b class="investment-history-name">'+esc(r.name||'名称なし')+'</b><span class="investment-history-type">'+esc(r.type||'その他')+'</span></div><b class="investment-history-value">'+yen(r.value)+'</b></div><div class="investment-history-meta">'+esc(r.date)+' / 元本 '+yen(r.principal)+' / 損益 '+signedYen(profit)+'</div><div class="investment-history-actions"><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="delOtherInvestById(this.dataset.id)">削除</button></div></div>';
   }).join('')+'</div>';
 }
-function life(){setTitle('生活','特別支出・固定費'); var asset=defenseAsset(), months=defenseMonths(); $('app').innerHTML='<div class="card defense-summary-card"><h2>生活防衛資金</h2><div class="summary-grid"><div class="summary-row"><div class="summary-item"><span>現在の資産額</span><b>'+yen(asset)+'</b></div><div class="summary-item"><span>確保月数</span><b>'+monthText(months)+'</b></div></div></div><p class="small defense-summary-note">NISA評価額は100%として生活防衛資金に含めています。</p></div><div id="specialCard" class="card"><h2 id="specialTitle">特別支出積立</h2><div class="row"><div><label>項目名</label><input id="sp_name" value="旅行"></div><div><label>予定日</label><input id="sp_due" type="date" value="'+nextYearDate()+'"></div></div><div class="row"><div><label>目標額</label><input id="sp_target" inputmode="numeric" placeholder="円"></div><div><label>今月の入金額</label><input id="sp_deposit" inputmode="numeric" placeholder="円"></div></div><div class="btnrow"><button onclick="addSpecial()">項目を追加</button></div>'+listSpecials()+'</div><div id="fixedCostCard" class="card"><h2 id="fixedCostTitle">固定費（サブスク含む）</h2><div class="grid"><div class="metric full"><span>月換算合計</span><b>'+yen(monthlyFixedCosts())+'</b></div></div><div class="row"><div><label>項目名</label><input id="fix_name" placeholder="スマホ・iCloud・保険など"></div><div><label>種類</label><select id="fix_kind"><option>固定費</option><option>サブスク</option><option>ローン返済</option></select></div></div><div class="row"><div><label>周期</label><select id="fix_cycle"><option>月額</option><option>年額</option></select></div><div><label>金額</label><input id="fix_amount" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>ローン残高</label><input id="fix_balance" inputmode="numeric" placeholder="ローン返済の場合・円"></div><div><label>ボーナス返済額</label><input id="fix_bonus" inputmode="numeric" placeholder="任意・円"></div></div><label>返済完了予定日</label><input id="fix_end" type="date"><div class="explain-box">種類をローン返済にして残高と返済完了予定日を入れると、固定費に月額を反映しつつ、負債残高・生活上の実質資産・会計上の純資産にも自動反映します。1年間での返済額は、現在から1年間に支払う予定額を合計します。</div><div class="btnrow"><button onclick="addFixedCost()">項目を追加</button></div>'+listFixedCosts()+'</div>'}
+function specialCardHtml(){
+  return '<div id="specialCard" class="card"><h2 id="specialTitle">特別支出積立</h2><div class="row"><div><label>項目名</label><input id="sp_name" value="旅行"></div><div><label>予定日</label><input id="sp_due" type="date" value="'+nextYearDate()+'"></div></div><div class="row"><div><label>目標額</label><input id="sp_target" inputmode="numeric" placeholder="円"></div><div><label>今月の入金額</label><input id="sp_deposit" inputmode="numeric" placeholder="円"></div></div><div class="btnrow"><button type="button" onclick="addSpecial()">項目を追加</button></div>'+listSpecials()+'</div>';
+}
+function fixedCostCardHtml(){
+  return '<div id="fixedCostCard" class="card"><h2 id="fixedCostTitle">固定費（サブスク含む）</h2><div class="grid"><div class="metric full"><span>月換算合計</span><b>'+yen(monthlyFixedCosts())+'</b></div></div><div class="row"><div><label>項目名</label><input id="fix_name" placeholder="スマホ・iCloud・保険など"></div><div><label>種類</label><select id="fix_kind"><option>固定費</option><option>サブスク</option><option>ローン返済</option></select></div></div><div class="row"><div><label>周期</label><select id="fix_cycle"><option>月額</option><option>年額</option></select></div><div><label>金額</label><input id="fix_amount" inputmode="numeric" placeholder="円"></div></div><div class="row"><div><label>ローン残高</label><input id="fix_balance" inputmode="numeric" placeholder="ローン返済の場合・円"></div><div><label>ボーナス返済額</label><input id="fix_bonus" inputmode="numeric" placeholder="任意・円"></div></div><label>返済完了予定日</label><input id="fix_end" type="date"><div class="explain-box">種類をローン返済にして残高と返済完了予定日を入れると、固定費に月額を反映しつつ、負債残高・生活上の実質資産・会計上の純資産にも自動反映します。1年間での返済額は、現在から1年間に支払う予定額を合計します。</div><div class="btnrow"><button type="button" onclick="addFixedCost()">項目を追加</button></div>'+listFixedCosts()+'</div>';
+}
+function life(){
+  setTitle('生活',lifeTab==='fixed'?'固定費・サブスク':'特別支出積立');
+  var asset=defenseAsset(), months=defenseMonths();
+  var defense='<div class="card defense-summary-card"><h2>生活防衛資金</h2><div class="summary-grid"><div class="summary-row"><div class="summary-item"><span>現在の資産額</span><b>'+yen(asset)+'</b></div><div class="summary-item"><span>確保月数</span><b>'+monthText(months)+'</b></div></div></div><p class="small defense-summary-note">NISA評価額は100%として生活防衛資金に含めています。</p></div>';
+  var tabs='<div class="invest-tabs compact animated-choice life-tabs '+(lifeTab==='fixed'?'choice-right':'choice-left')+'" role="tablist"><button type="button" role="tab" aria-selected="'+(lifeTab==='special'?'true':'false')+'" class="'+(lifeTab==='special'?'active':'')+'" onclick="showSpecialTab()"><span class="tab-main">特別支出</span><span class="tab-sub">積立・入金</span></button><button type="button" role="tab" aria-selected="'+(lifeTab==='fixed'?'true':'false')+'" class="'+(lifeTab==='fixed'?'active':'')+'" onclick="showFixedTab()"><span class="tab-main">固定費</span><span class="tab-sub">サブスク・ローン</span></button></div>';
+  $('app').innerHTML=defense+tabs+(lifeTab==='fixed'?fixedCostCardHtml():specialCardHtml());
+  setTimeout(enhanceInputs,0);
+}
+window.showSpecialTab=function(){if(lifeTab==='special')return;animateTwoChoice('.life-tabs',false,function(){lifeTab='special';life()})}
+window.showFixedTab=function(){if(lifeTab==='fixed')return;animateTwoChoice('.life-tabs',true,function(){lifeTab='fixed';life()})}
 function monthsUntil(d){return Math.max(1,Math.ceil((new Date(d)-new Date())/(864e5*30.44)))}
-window.addSpecial=function(){state.specials.push({id:uid(),name:$('sp_name').value||'特別支出',target:n($('sp_target').value),current:n($('sp_deposit').value),due:$('sp_due').value||nextYearDate(),createdAt:today()}); editingSpecialId=''; save(); life(); toast('特別支出項目を追加しました')}
-window.addSpecialDeposit=function(btn){var id=btn&&btn.dataset?btn.dataset.id:''; var el=$('dep_'+id); var amount=n(el&&el.value); state.specials=(state.specials||[]).map(function(r){if(r.id===id){r.current=n(r.current)+amount} return r}); save(); life(); toast('入金しました')}
+window.addSpecial=function(){
+  if(mutationBusy)return;mutationBusy=true;
+  var row={id:uid(),name:$('sp_name').value||'特別支出',target:n($('sp_target').value),current:n($('sp_deposit').value),due:$('sp_due').value||nextYearDate(),createdAt:today()};
+  state.specials.push(row);editingSpecialId='';
+  if(!save()){state.specials.pop();mutationBusy=false;return}
+  mutationBusy=false;life();showSavedVisual('積立項目を追加しました',[{label:'積立項目',value:row.name},{label:'目標額',value:moneyText(row.target)},{label:'初回入金',value:moneyText(row.current)}]);toast('特別支出項目を追加しました');
+}
+window.addSpecialDeposit=function(btn){
+  if(mutationBusy)return;
+  var id=btn&&btn.dataset?btn.dataset.id:'', el=$('dep_'+id), amount=n(el&&el.value), target=findById('specials',id);
+  if(!target){toast('積立項目が見つかりません');return}
+  if(amount<=0){toast('入金額を入力してください');return}
+  mutationBusy=true;
+  var before=n(target.current), historyKey=Array.isArray(target.history)?'history':(Array.isArray(target.deposits)?'deposits':'');
+  target.current=before+amount;
+  if(historyKey)target[historyKey].push({id:uid(),date:today(),amount:amount,balance:target.current});
+  if(!save()){target.current=before;if(historyKey)target[historyKey].pop();mutationBusy=false;return}
+  mutationBusy=false;var name=target.name||'特別支出';var after=target.current;life();showSavedVisual('積立へ入金しました',[{label:'積立項目',value:name},{label:'入金額',value:moneyText(amount)},{label:'積立後',value:moneyText(after)}]);toast('入金しました');
+}
 window.editSpecialById=function(id){editingSpecialId=id; life()}
 window.cancelSpecialEdit=function(){editingSpecialId=''; life()}
 window.saveSpecialEdit=function(btn){
   var id=btn&&btn.dataset?btn.dataset.id:'';
   var name=$('edit_name_'+id), due=$('edit_due_'+id), target=$('edit_target_'+id), current=$('edit_current_'+id);
+  var before=(state.specials||[]).map(function(r){return Object.assign({},r)});
   state.specials=(state.specials||[]).map(function(r){
     if(r.id===id){
       r.name=(name&&name.value)||r.name||'特別支出';
@@ -6249,7 +6671,7 @@ window.saveSpecialEdit=function(btn){
     return r;
   });
   editingSpecialId='';
-  save();
+  if(!save()){state.specials=before;life();return}
   life();
   toast('特別支出項目を保存しました');
 }
@@ -6259,11 +6681,13 @@ function listSpecials(){
   if(!arr.length)return '<p class="small">登録なし</p>';
   return arr.map(function(r){
     var need=Math.max(0,n(r.target)-n(r.current));
-    var per=need/monthsUntil(r.due);
+    var yearlyTarget=Math.max(0,Math.round(n(r.target)));
+    var regularMonthly=Math.floor(yearlyTarget/12/100)*100;
+    var firstMonthly=yearlyTarget-regularMonthly*11;
     var prog=Math.min(100,n(r.current)/Math.max(1,n(r.target))*100);
-    var start=r.createdAt||today();
-    var period=Math.max(0,monthsBetweenDates(start,r.due));
-    var html='<div class="listitem special-item"><div class="special-head"><b>'+esc(r.name)+'</b><span class="right">'+yen(r.current)+' / '+yen(r.target)+'</span></div><div class="bar"><i style="width:'+prog+'%"></i></div><div class="small">積立期間 '+esc(start)+'〜'+esc(r.due)+'（'+monthLabelFromCount(period)+'） / 月 '+yen(per)+' 必要 / 不足 '+yen(need)+'</div>';
+    var history=Array.isArray(r.history)?r.history:(Array.isArray(r.deposits)?r.deposits:[]);
+    var historyHtml=history.length?'<div class="small special-history"><span>最近の入金</span>'+history.slice(-3).map(function(h){return '<span>'+esc((h.date||'日付未設定')+' '+moneyText(h.amount))+'</span>'}).join('')+'</div>':'';
+    var html='<div class="listitem special-item"><div class="special-head"><b>'+esc(r.name)+'</b><span class="right">'+yen(r.current)+' / '+yen(r.target)+'</span></div><div class="bar"><i style="width:'+prog+'%"></i></div><div class="small special-detail-list"><span><em>目標日</em><b>'+esc(r.due)+'</b></span><span><em>初回</em><b>'+yen(firstMonthly)+'</b></span><span><em>2回目以降</em><b>'+yen(regularMonthly)+'</b></span><span><em>残り</em><b>'+yen(need)+'</b></span></div>'+historyHtml;
     html+='<div class="deposit-row"><input id="dep_'+esc(r.id)+'" inputmode="numeric" placeholder="今月の入金額"><button type="button" data-id="'+esc(r.id)+'" onclick="addSpecialDeposit(this)">入金</button></div>';
     if(editingSpecialId===r.id){
       html+='<div class="edit-box"><label>項目名</label><input id="edit_name_'+esc(r.id)+'" value="'+esc(r.name)+'"><label>予定日</label><input id="edit_due_'+esc(r.id)+'" type="date" value="'+esc(r.due)+'"><label>目標額</label><input id="edit_target_'+esc(r.id)+'" inputmode="numeric" value="'+inputMoney(r.target)+'" placeholder="円"><label>現在の積立額</label><input id="edit_current_'+esc(r.id)+'" inputmode="numeric" value="'+inputMoney(r.current)+'" placeholder="円"><div class="btnrow"><button type="button" data-id="'+esc(r.id)+'" onclick="saveSpecialEdit(this)">保存</button><button class="secondary" type="button" onclick="cancelSpecialEdit()">キャンセル</button></div></div>';
@@ -6276,7 +6700,13 @@ function listSpecials(){
 }
 window.addSub=function(){addFixedCost()}
 function listSubs(){return ''}
-window.addFixedCost=function(){editingFixedCostId=''; state.fixedCosts.push({id:uid(),name:$('fix_name').value||'固定費',kind:$('fix_kind').value||'固定費',cycle:$('fix_cycle').value||'月額',amount:n($('fix_amount').value),loanBalance:n($('fix_balance').value),loanBonus:n($('fix_bonus').value),loanEnd:$('fix_end').value||'',active:true}); save(); life(); toast('固定費を追加しました')}
+window.addFixedCost=function(){
+  if(mutationBusy)return;mutationBusy=true;
+  var row={id:uid(),name:$('fix_name').value||'固定費',kind:$('fix_kind').value||'固定費',cycle:$('fix_cycle').value||'月額',amount:n($('fix_amount').value),loanBalance:n($('fix_balance').value),loanBonus:n($('fix_bonus').value),loanEnd:$('fix_end').value||'',active:true};
+  editingFixedCostId='';state.fixedCosts.push(row);
+  if(!save()){state.fixedCosts.pop();mutationBusy=false;return}
+  mutationBusy=false;life();showSavedVisual('固定費を追加しました',[{label:'項目',value:row.name},{label:'金額',value:moneyText(row.amount)},{label:'種類',value:row.kind}]);toast('固定費を追加しました');
+}
 window.editFixedCostById=function(id){
   editingFixedCostId=id;
   life();
@@ -6299,6 +6729,7 @@ window.saveFixedCostEdit=function(btn){
   var bonus=$('edit_fixed_bonus_'+id);
   var end=$('edit_fixed_end_'+id);
 
+  var before=(state.fixedCosts||[]).map(function(r){return Object.assign({},r)});
   state.fixedCosts=(state.fixedCosts||[]).map(function(r){
     if(r.id===id){
       r.name=(name&&name.value)||r.name||'固定費';
@@ -6312,7 +6743,7 @@ window.saveFixedCostEdit=function(btn){
     return r;
   });
   editingFixedCostId='';
-  save();
+  if(!save()){state.fixedCosts=before;life();return}
   life();
   toast('固定費を保存しました');
 }
@@ -6324,8 +6755,8 @@ function listFixedCosts(){
     var leftMonths=monthsUntilLoanEnd(r.loanEnd);
     var count=Math.min(12,leftMonths);
     var loan12=Math.min(n(r.loanBalance)||monthly*count, monthly*count+n(r.loanBonus)*Math.ceil(count/6));
-    var loanInfo=(r.kind==='ローン返済'||n(r.loanBalance)>0)?'<div class="loan-mini">ローン残高 '+yen(r.loanBalance)+' / 完了予定 '+(r.loanEnd?esc(r.loanEnd):'未設定')+' / ボーナス返済 '+yen(r.loanBonus)+' / 1年間での返済額 '+yen(loan12)+'</div>':'';
-    var kindTag=(r.kind&&r.kind!=='固定費')?'<span class="pill fixed-kind-pill">'+esc(r.kind)+'</span>':'';
+    var loanInfo=(r.kind==='ローン返済'||n(r.loanBalance)>0)?'<div class="loan-mini"><span>ローン残高 '+yen(r.loanBalance)+'</span><span>完了予定 '+(r.loanEnd?esc(r.loanEnd):'未設定')+'</span><span>ボーナス返済 '+yen(r.loanBonus)+'</span><span>1年間の返済予定 '+yen(loan12)+'</span></div>':'';
+    var kindTag='<span class="fixed-kind-label">'+esc(r.kind||'固定費')+'</span>';
 
     if(editingFixedCostId===r.id){
       return '<div id="edit_fixed_'+esc(r.id)+'" class="listitem fixed-item fixed-editing"><div class="edit-box fixed-edit-box">'
@@ -6346,7 +6777,7 @@ function listFixedCosts(){
         +'</div></div>';
     }
 
-    return '<div class="listitem fixed-item"><div class="fixed-head"><div>'+kindTag+'<b class="fixed-name">'+esc(r.name)+'</b></div><span class="right">'+yen(monthly)+'/月</span></div><div class="small">'+esc(r.cycle)+' '+yen(r.amount)+'</div>'+loanInfo+'<div class="item-actions"><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="editFixedCostById(this.dataset.id)">編集</button><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="delFixedCostById(this.dataset.id)">削除</button></div></div>';
+    return '<div class="listitem fixed-item"><div class="fixed-head"><b class="fixed-name">'+esc(r.name)+'</b><span class="right">'+yen(monthly)+'/月</span></div><div class="fixed-meta-row">'+kindTag+'</div>'+loanInfo+'<div class="item-actions"><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="editFixedCostById(this.dataset.id)">編集</button><button class="secondary" type="button" data-id="'+esc(r.id)+'" onclick="delFixedCostById(this.dataset.id)">削除</button></div></div>';
   }).join('');
 }
 window.delFixedCostById=function(id){var r=findById('fixedCosts',id); var msg='この固定費を削除しますか？\n\n'+(r?((r.name||'項目')+' / '+(r.cycle||'')+' '+yen(r.amount)):'選択した固定費'); deleteItem('fixedCosts',id,msg,function(){if(editingFixedCostId===id)editingFixedCostId='';life();})}
@@ -6376,7 +6807,7 @@ function tools(){
     +'<label>まだ給与明細に入力していない賞与の見込み合計</label><input id="furusato_bonus_remaining" inputmode="numeric" value="'+inputMoney(fur.remainingBonus)+'" placeholder="分からない間は0円">'
     +'<p class="small bonus-guidance">冬賞与の金額がある程度分かる10〜11月頃に入力します。実際の賞与を給与明細へ登録した後は、その賞与分をここから減らしてください。</p>'
     +'<div class="btnrow"><button class="secondary" onclick="saveFurusatoForecast()">ふるさと納税情報を保存</button></div>'
-    +'<p class="small">'+(fur.finalReady?'12月給与と年内分の確定を確認したため、上限概算から3,000円の余裕を残して最終寄附目安を表示しています。':'給与・賞与が確定するまでは、入力月数に応じて上限概算の70〜95%に抑えた安全寄附目安を表示します。')+' 扶養、住宅ローン控除、医療費控除などは完全には反映できないため、最終的には源泉徴収票や公式計算でも確認してください。</p></div></div><div id="taxSimCard" class="card"><h2 id="taxSimTitle">手取り・税金シミュレーター</h2><label>年収</label><input id="sim_income" inputmode="numeric" value="'+inputMoney(inc)+'" placeholder="円"><div class="btnrow"><button onclick="runTaxSim()">試算</button></div><div id="taxResult"></div></div><div class="card"><h2>NISA積立増額シミュレーション</h2><div class="row"><div><label>現在の月積立</label><input id="sim_now" inputmode="numeric" value="'+inputMoney(latestNisa().contribution||0)+'" placeholder="円"></div><div><label>増額後</label><input id="sim_up" inputmode="numeric" value="50,000" placeholder="円"></div></div><label>想定年利%</label><input id="sim_return" inputmode="decimal" value="'+n(state.settings.nisaAnnualReturn)+'" placeholder="%"><div class="btnrow"><button onclick="runNisaSim()">65歳時点を試算</button></div><div id="nisaSimResult"></div></div>'+loanToolHtml(planText)+'<div class="card"><h2>CSV簡易取込</h2><label>取込先</label><select id="csv_target"><option value="tx">収支</option><option value="nisa">NISA</option></select><label>CSVテキスト</label><textarea id="csv_text" placeholder="収支: 日付,収入/支出,金額,カテゴリ,固定費/変動費,メモ\nNISA: 日付,入金額,評価額,メモ"></textarea><div class="btnrow"><button onclick="importCsvText()">CSVを取り込む</button></div><p class="small">銀行・証券CSVは形式が違うため、まずは必要列だけ貼り付ける簡易取込です。</p></div><div class="card"><h2 id="backupTitle">バックアップ</h2><span id="backupLastLine" class="small">最終バックアップ：'+formatDateTime(state.settings.lastBackupAt)+'</span><div class="btnrow"><button class="backup-file-button" onclick="saveBackupAsFile()"><span>ファイルとして</span><span>保存</span></button><button class="secondary" onclick="exportBackup()">JSONを表示</button><button class="secondary" onclick="importBackup(false)">バックアップ読込</button></div><p class="small">普段の起動ではパスワードを使いません。「ファイルとして保存」または「JSONを表示」を選んだときだけ、バックアップ専用パスワードを設定します。復元時にはそのパスワードが必要です。</p><div id="backupOut"></div></div><div class="card reset-data-card"><h2>入力情報のリセット</h2><p class="small">収支、給与、NISA、投資、特別支出、固定費、各設定を初期状態に戻します。実行前にバックアップを保存してください。</p><button class="reset-data-button" type="button" onclick="resetAllInputData()">入力されている情報をリセット</button></div>';
+    +'<p class="small">'+(fur.finalReady?'12月給与と年内分の確定を確認したため、上限概算から3,000円の余裕を残して最終寄附目安を表示しています。':'給与・賞与が確定するまでは、入力月数に応じて上限概算の70〜95%に抑えた安全寄附目安を表示します。')+' 扶養、住宅ローン控除、医療費控除などは完全には反映できないため、最終的には源泉徴収票や公式計算でも確認してください。</p></div></div><div id="taxSimCard" class="card"><h2 id="taxSimTitle">手取り・税金シミュレーター</h2><label>年収</label><input id="sim_income" inputmode="numeric" value="'+inputMoney(inc)+'" placeholder="円"><div class="btnrow"><button onclick="runTaxSim()">試算</button></div><div id="taxResult"></div></div><div class="card"><h2>NISA積立増額シミュレーション</h2><div class="row"><div><label>現在の月積立</label><input id="sim_now" inputmode="numeric" value="'+inputMoney(latestNisa().contribution||0)+'" placeholder="円"></div><div><label>増額後</label><input id="sim_up" inputmode="numeric" value="50,000" placeholder="円"></div></div><label>想定年利%</label><input id="sim_return" inputmode="decimal" value="'+n(state.settings.nisaAnnualReturn)+'" placeholder="%"><div class="btnrow"><button onclick="runNisaSim()">65歳時点を試算</button></div><div id="nisaSimResult"></div></div>'+loanToolHtml(planText)+'<div class="card"><h2>CSV簡易取込</h2><label>取込先</label><select id="csv_target"><option value="tx">収支</option><option value="nisa">NISA</option></select><label>CSVテキスト</label><textarea id="csv_text" placeholder="収支: 日付,収入/支出,金額,カテゴリ,固定費/変動費,メモ\nNISA: 日付,入金額,評価額,メモ"></textarea><div class="btnrow"><button onclick="importCsvText()">CSVを取り込む</button></div><p class="small">銀行・証券CSVは形式が違うため、まずは必要列だけ貼り付ける簡易取込です。</p></div><div class="card"><h2 id="backupTitle">バックアップ</h2><span id="backupLastLine" class="small">最終バックアップ：'+formatDateTime(state.settings.lastBackupAt)+'</span><div class="btnrow"><button class="backup-file-button" onclick="saveBackupAsFile()"><span>ファイルとして</span><span>保存</span></button><button class="secondary" onclick="exportBackup()">JSONを表示</button><button class="secondary" onclick="importBackup(false)">バックアップ読込</button><button class="danger" onclick="lock()">ロック</button></div><p class="small">「ファイルとして保存」は、iPhoneの共有画面を開き、JSONファイルとして保存できるようにします。うまくいかない場合は「JSONを表示」からコピー保存してください。</p><div id="backupOut"></div></div><div class="card reset-data-card"><h2>入力情報のリセット</h2><p class="small">収支、給与、NISA、投資、特別支出、固定費、各設定を初期状態に戻します。実行前にバックアップを保存してください。</p><button class="reset-data-button" type="button" onclick="resetAllInputData()">入力されている情報をリセット</button></div>';
   setTimeout(enhanceInputs,0);
 }
 function loanToolHtml(planText){
@@ -6475,165 +6906,196 @@ function featureChecklist(){
 }
 window.importCsvText=function(){try{var target=$('csv_target').value, text=$('csv_text').value||''; var lines=text.split(/\r?\n/).map(function(x){return x.trim()}).filter(Boolean); var count=0; lines.forEach(function(line){var cols=line.split(',').map(function(x){return x.trim()}); if(cols[0]&&cols[0].match(/日付|date/i))return; if(target==='tx'){state.transactions.push({id:uid(),date:cols[0]||today(),type:cols[1]||'支出',amount:n(cols[2]),category:cols[3]||'',kind:cols[4]||'変動費',memo:cols[5]||''}); count++}else{state.nisa.push({id:uid(),date:cols[0]||today(),contribution:n(cols[1]),value:n(cols[2]),memo:cols[3]||''}); count++}}); save(); tools(); toast(count+'件取り込みました')}catch(e){toast('CSV取込に失敗しました'); setDebug(String(e&&e.stack||e))}}
 
-function cancelledError(){var e=new Error('キャンセルしました');e.name='AbortError';return e}
-function requestNewBackupPassword(){
-  var first=window.prompt('バックアップ用パスワードを入力してください（8文字以上）。普段の起動には使いません。');
-  if(first===null)throw cancelledError();
-  if(String(first).length<8)throw new Error('バックアップ用パスワードは8文字以上にしてください');
-  var second=window.prompt('確認のため、同じバックアップ用パスワードをもう一度入力してください。');
-  if(second===null)throw cancelledError();
-  if(first!==second)throw new Error('バックアップ用パスワードが一致しません');
-  return first;
-}
-async function makeBackupJson(){
-  if(!state||!cryptoKey){throw new Error('先に開いてください')}
-  var backupPassword=requestNewBackupPassword();
-  markBackupNow();
-  var backupSalt=randomB64(16);
-  var backupKey=await deriveAesKey(backupPassword,backupSalt,KDF_ITERATIONS);
-  var payload=await encryptSnapshot(JSON.stringify(state),backupKey,backupSalt,KDF_ITERATIONS);
-  payload.exportedAt=new Date().toISOString();
-  payload.appVersion='4.71-pwa1.3';
-  payload.purpose='encrypted-backup';
+function makeBackupJson(){
+  if(!password){throw new Error('先に開いてください')}
+  if(!salt)salt=randSalt();
+  save();
+  var payload={format:'assetmemo-encrypted-v438',exportedAt:new Date().toISOString(),salt:salt,data:encryptObj(state,password,salt)};
   return JSON.stringify(payload,null,2);
 }
 
 function backupFileName(){
   var stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\..+$/,'').replace('T','-');
-  return 'assetmemo-pwa-backup-'+stamp+'.json';
+  return 'assetmemo-encrypted-backup-v438-'+stamp+'.json';
 }
 window.saveBackupAsFile=async function(){
   try{
-    var text=await makeBackupJson();
+    var text=makeBackupJson();
+    markBackupNow();
     var filename=backupFileName();
     if(typeof File!=='undefined' && navigator.share){
       var file=new File([text],filename,{type:'application/json'});
-      var shareData={files:[file],title:filename,text:'資産管理のAES暗号化バックアップです。'};
+      var shareData={files:[file],title:filename,text:'資産メモの暗号化バックアップです。'};
       if(!navigator.canShare || navigator.canShare(shareData)){
         await navigator.share(shareData);
         var out=$('backupOut');
-        if(out)out.innerHTML='<div class="backup-box"><p class="small okText">共有画面を開きました。</p><p class="small">「ファイルに保存」を選んで、JSONファイルとして保管してください。</p></div>';
-        var last=$('backupLastLine');if(last)last.textContent='最終バックアップ：'+formatDateTime(state.settings.lastBackupAt);
-        toast('共有画面を開きました');return;
+        if(out)out.innerHTML='<div class="backup-box"><p class="small okText">共有画面を開きました。</p><p class="small">「ファイルに保存」などを選んで、JSONファイルとして保存してください。</p></div>';
+        var last=$('backupLastLine'); if(last)last.textContent='最終バックアップ：'+formatDateTime(state.settings.lastBackupAt);
+        toast('共有画面を開きました');
+        return;
       }
     }
-    await exportBackup();
+    exportBackup();
     toast('ファイル共有が使えないため、JSONを表示しました');
   }catch(e){
     if(String(e&&e.name||'')==='AbortError'){toast('保存をキャンセルしました');return}
-    try{await exportBackup()}catch(ignore){}
+    exportBackup();
     toast('ファイル保存が使えないため、JSONを表示しました');
     setDebug(String(e&&e.stack||e));
   }
 }
-window.exportBackup=async function(){
-  try{
-    var text=await makeBackupJson();
-    var last=$('backupLastLine');if(last)last.textContent='最終バックアップ：'+formatDateTime(state.settings.lastBackupAt);
-    var out=$('backupOut');if(!out){tools();out=$('backupOut')}
-    out.innerHTML='<div class="backup-box"><p class="small">下の暗号化JSONをコピーし、必要な場合は <b>assetmemo-pwa-backup.json</b> として保存してください。</p><textarea id="backup_text" class="backup-text" readonly>'+esc(text)+'</textarea><div class="btnrow"><button onclick="copyBackupJson()">JSONをコピー</button><button class="secondary" onclick="selectBackupJson()">全文選択</button></div><p class="small">バックアップもAES-256-GCMで暗号化されています。復元には保存時に設定したバックアップ用パスワードが必要です。</p></div>';
-    setTimeout(function(){var ta=$('backup_text');if(ta){ta.focus();ta.select()}},80);
-    toast('バックアップJSONを作成しました');
-  }catch(e){toast(e&&e.message?e.message:'書き出しできませんでした');setDebug(String(e&&e.stack||e))}
-}
-window.selectBackupJson=function(){var ta=$('backup_text');if(!ta){toast('先にバックアップJSONを作成してください');return}ta.focus();ta.select();toast('全文を選択しました')}
-window.copyBackupJson=function(){
-  var ta=$('backup_text');if(!ta){toast('先にバックアップJSONを作成してください');return}
-  var text=ta.value||ta.textContent||'';
-  function fallback(){try{ta.focus();ta.select();document.execCommand('copy');toast('JSONをコピーしました')}catch(e){toast('コピーできませんでした。全文選択して手動コピーしてください')}}
-  try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){toast('JSONをコピーしました')}).catch(fallback)}else fallback()}catch(e){fallback()}
-}
-window.importBackup=function(fromLock){
-  var inp=$('fileInput');
-  inp.value='';
-  inp.onchange=async function(ev){
-    var file=ev.target.files[0];if(!file)return;
-    try{
-      var text=typeof file.text==='function'?await file.text():await new Promise(function(resolve,reject){var fr=new FileReader();fr.onload=function(){resolve(fr.result)};fr.onerror=reject;fr.readAsText(file)});
-      var obj=JSON.parse(text),importedState=null,pw='';
-      if(obj&&obj.format===CRYPTO_FORMAT){
-        pw=window.prompt('バックアップ保存時に設定したパスワードを入力してください。')||'';
-        if(!pw)throw cancelledError();
-        importedState=(await decryptAesPayload(obj,pw)).state;
-      }else if(/^assetmemo-encrypted-v\d+$/.test(String(obj&&obj.format||''))){
-        pw=window.prompt('以前のバックアップのパスワードを入力してください。')||'';
-        if(!pw)throw cancelledError();
-        importedState=legacyDecryptObj(obj.data,pw,obj.salt);
-      }else if(obj&&obj.v===1&&obj.data&&obj.salt){
-        pw=window.prompt('以前のバックアップのパスワードを入力してください。')||'';
-        if(!pw)throw cancelledError();
-        importedState=legacyDecryptObj(obj.data,pw,obj.salt);
-      }else{
-        importedState=obj.state||obj;
-      }
-      if(!importedState||!importedState.settings)throw new Error('形式が違います');
-      state=importedState;
-      normalizeState();
-      state.settings.lastRestoreAt=new Date().toISOString();
-      cryptoKey=await generateDeviceKey();
-      salt=randomB64(16);
-      kdfIterations=KDF_ITERATIONS;
-      password='';
-      await saveDeviceKey(cryptoKey);
-      await save();
-      if(fromLock)unlock();else show(currentPage);
-      toast('読み込みました');
-    }catch(e){
-      if(String(e&&e.name||'')==='AbortError'){toast('読み込みをキャンセルしました')}
-      else{toast('読み込み失敗。パスワードが違うか、形式が違います');setDebug(String(e&&e.stack||e))}
-    }finally{inp.value=''}
-  };
-  inp.click();
-}
 
-async function tryAutoUnlock(){
+
+
+
+window.exportBackup=function(){
   try{
-    var raw=storageGet(STORE);
-    if(!raw)return false;
-    var box=JSON.parse(raw);
-    if(!box||box.format!==CRYPTO_FORMAT)return false;
-    var key=await loadDeviceKey();
-    if(!key)return false;
-    var opened=await decryptAesPayloadWithKey(box,key);
-    state=opened.state;cryptoKey=opened.key;salt=opened.salt;kdfIterations=opened.iterations;password='';
-    normalizeState();unlock();return true;
+    var text=makeBackupJson();
+    markBackupNow();
+    var last=$('backupLastLine'); if(last)last.textContent='最終バックアップ：'+formatDateTime(state.settings.lastBackupAt);
+    var out=$('backupOut');
+    if(!out){tools(); out=$('backupOut')}
+    out.innerHTML='<div class="backup-box"><p class="small">下の内容をコピーして、必要な場合だけ、下の内容をファイル名 <b>assetmemo-encrypted-backup-v438.json</b> で保存してください。</p><textarea id="backup_text" class="backup-text" readonly>'+esc(text)+'</textarea><div class="btnrow"><button onclick="copyBackupJson()">JSONをコピー</button><button class="secondary" onclick="selectBackupJson()">全文選択</button></div><p class="small">iPhoneの共有で「URLを保存」「HTMLを保存」と出る場合は使わず、ここでJSON本文をコピーして保存してください。</p></div>';
+    setTimeout(function(){var ta=$('backup_text'); if(ta){ta.focus(); ta.select();}},80);
+    toast('バックアップJSONを作成しました');
   }catch(e){
-    setDebug('端末鍵で開けませんでした。以前のパスワードで引き継いでください。\n'+String(e&&e.message||e));
-    return false;
+    toast(e&&e.message?e.message:'書き出しできませんでした');
+    setDebug(String(e&&e.stack||e));
   }
 }
-window.lock=function(){
-  closeMenu();
-  if(state)save();
-  var splash=$('splashscreen');if(splash)splash.classList.remove('hidden');
-  setTimeout(function(){tryAutoUnlock()},30);
+window.selectBackupJson=function(){
+  var ta=$('backup_text');
+  if(!ta){toast('先にバックアップJSONを作成してください');return}
+  ta.focus(); ta.select(); toast('全文を選択しました');
 }
+window.copyBackupJson=function(){
+  var ta=$('backup_text');
+  if(!ta){toast('先にバックアップJSONを作成してください');return}
+  var text=ta.value||ta.textContent||'';
+  function fallback(){
+    try{ta.focus(); ta.select(); document.execCommand('copy'); toast('JSONをコピーしました')}catch(e){toast('コピーできませんでした。全文選択して手動コピーしてください')}
+  }
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){toast('JSONをコピーしました')}).catch(function(){fallback()});
+    }else fallback();
+  }catch(e){fallback()}
+}
+window.importBackup=function(fromLock){var inp=$('fileInput'); inp.onchange=function(ev){var file=ev.target.files[0]; if(!file)return; var fr=new FileReader(); fr.onload=function(){try{var obj=JSON.parse(fr.result); var pw=password||$('pw').value||''; if(!pw){$('lockmsg').textContent='パスワードを入力してください'; return} if(/^assetmemo-encrypted-v\d+$/.test(String(obj.format||''))){state=decryptObj(obj.data,pw,obj.salt); salt=obj.salt; password=pw; savePwIfNeeded(pw)}else{state=obj.state||obj; password=pw; if(!salt)salt=randSalt(); savePwIfNeeded(pw)} if(!state.settings)throw new Error('形式が違います'); normalizeState(); if(state.settings)state.settings.lastRestoreAt=new Date().toISOString(); save(); if(fromLock)unlock(); else show(currentPage); toast('読み込みました')}catch(e){toast('読み込み失敗。パスワードが違うか、形式が違います'); setDebug(String(e&&e.stack||e))}}; fr.readAsText(file)}; inp.click()}
+window.lock=function(){closeMenu(); save(); state=null; password=''; currentPage=''; pageScrolls={}; amountHighlightPlayed=false; amountHighlightPending=false; $('pw').value=''; $('lockscreen').classList.remove('hidden'); $('nav').classList.add('hidden'); $('app').innerHTML=''; $('title').textContent='Dashboard'; $('subtitle').textContent='ahamo風フラットUI v4.76'; toast('ロックしました')}
 window.del=function(arr,id){state[arr]=(state[arr]||[]).filter(function(x){return x.id!==id}); save(); toast('削除しました')}
 document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeMenu()});
-document.addEventListener('visibilitychange',function(){if(document.hidden&&state)save()});
-window.addEventListener('pagehide',function(){if(state)save()});
-async function initPwa(){
-  trySavedPassword();
-  try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}
-  if('serviceWorker' in navigator){
-    try{
-      var reg=await navigator.serviceWorker.register('./service-worker.js',{scope:'./'});
-      try{await reg.update()}catch(e){}
-    }catch(e){setDebug('オフライン機能の登録に失敗しました。\n'+String(e&&e.message||e))}
-  }
-  var raw=storageGet(STORE);
-  if(raw){
-    var opened=await tryAutoUnlock();
-    if(!opened)showRecovery('以前の暗号化データを引き継ぐため、これまでのパスワードを一度だけ入力してください。');
-  }else{
-    try{await createFreshVault()}catch(e){
-      setDebug(String(e&&e.stack||e));
-      showRecovery('端末内の保存領域を初期化できませんでした。Safariの通常タブまたはホーム画面のWebアプリから開き直してください。');
-    }
-  }
-}
-initPwa();
+trySavedPassword();
 })();
+
+// v4.77: smoother iOS-style tab bar, five-second addition confirmation, and unified native date picker.
+(function(){
+  const bar=document.getElementById('nav');
+  if(!bar) return;
+  let lastY=window.scrollY||0;
+  let downTravel=0;
+  let upTravel=0;
+  let ticking=false;
+  let compact=bar.classList.contains('ios26-compact');
+  let lastToggle=0;
+
+  const setCompact=(next)=>{
+    if(next===compact) return;
+    const now=performance.now();
+    if(now-lastToggle<180) return;
+    compact=next;
+    lastToggle=now;
+    bar.classList.toggle('ios26-compact',next);
+    downTravel=0;
+    upTravel=0;
+  };
+
+  const update=()=>{
+    const y=Math.max(0,window.scrollY||0);
+    const delta=y-lastY;
+    if(Math.abs(delta)>.5){
+      if(delta>0){
+        downTravel=Math.min(80,downTravel+delta);
+        upTravel=Math.max(0,upTravel-delta*.7);
+      }else{
+        upTravel=Math.min(80,upTravel-delta);
+        downTravel=Math.max(0,downTravel+delta*.7);
+      }
+    }
+
+    if(y<34){
+      setCompact(false);
+    }else if(!compact && y>88 && downTravel>30){
+      setCompact(true);
+    }else if(compact && upTravel>22){
+      setCompact(false);
+    }
+
+    lastY=y;
+    ticking=false;
+  };
+
+  window.addEventListener('scroll',()=>{
+    if(!ticking){
+      ticking=true;
+      requestAnimationFrame(update);
+    }
+  },{passive:true});
+
+  bar.addEventListener('click',()=>setCompact(false));
+})();
+
+// v4.86: Scriptable's iOS WebView can move fixed elements above the software keyboard.
+// Temporarily move the tab bar out while an editable control or native picker is active.
+(function(){
+  const root=document.body;
+  const viewport=window.visualViewport;
+  let restoreTimer=null;
+
+  const isEditable=(el)=>{
+    if(!el||el.disabled||el.readOnly) return false;
+    const tag=String(el.tagName||'').toLowerCase();
+    if(tag==='textarea'||tag==='select') return true;
+    if(tag!=='input') return false;
+    const type=String(el.type||'text').toLowerCase();
+    return !/^(button|submit|reset|checkbox|radio|file|hidden|range|color)$/.test(type);
+  };
+
+  const viewportHasKeyboard=()=>{
+    if(!viewport) return false;
+    const full=Math.max(window.innerHeight||0,document.documentElement.clientHeight||0);
+    return full>0&&viewport.height<full*.78;
+  };
+
+  const setKeyboardOpen=(open)=>{
+    if(restoreTimer){clearTimeout(restoreTimer);restoreTimer=null;}
+    root.classList.toggle('keyboard-open',!!open);
+  };
+
+  document.addEventListener('focusin',(event)=>{
+    if(isEditable(event.target)) setKeyboardOpen(true);
+  });
+
+  document.addEventListener('focusout',()=>{
+    if(restoreTimer) clearTimeout(restoreTimer);
+    restoreTimer=setTimeout(()=>{
+      restoreTimer=null;
+      const active=document.activeElement;
+      if(!isEditable(active)&&!viewportHasKeyboard()) root.classList.remove('keyboard-open');
+    },220);
+  });
+
+  if(viewport){
+    viewport.addEventListener('resize',()=>{
+      if(viewportHasKeyboard()) setKeyboardOpen(true);
+      else if(!isEditable(document.activeElement)){
+        if(restoreTimer) clearTimeout(restoreTimer);
+        restoreTimer=setTimeout(()=>{restoreTimer=null;root.classList.remove('keyboard-open')},180);
+      }
+    },{passive:true});
+  }
+})();
+
 </script>
 </body>
 </html>
