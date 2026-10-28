@@ -1,0 +1,14 @@
+{
+  "name": "assetmemo-pwa",
+  "version": "4.91.0",
+  "private": true,
+  "description": "Local-only asset memo PWA. No runtime dependencies.",
+  "scripts": {
+    "test": "node --test tests/security.test.cjs tests/service-worker.test.cjs",
+    "test:browser": "node tests/browser.test.cjs",
+    "update:csp": "node scripts/update-csp.cjs"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "6.2.6"
+  }
+}
